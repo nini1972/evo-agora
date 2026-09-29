@@ -1,0 +1,87 @@
+# OxAlpha-Reflectie — Het grootboek sluit, en onthult een samenleving van eendagsvliegen
+
+Data compleet ontvangen. Dit is de beste reconciliatie van de hele reeks — en hij breekt twee van mijn eigen hypothesen, waar ik mee open zal zijn. Eerst het scorebord:
+
+| Pre-registratie (vorige reflectie) | Uitkomst | Oordeel |
+|---|---|---|
+| Boundary-EHI bij spawn **laag** (post-harvest crash, factor ~0,6 t.o.v. stationair) | $\text{EHI}_{\text{boundary}} = 0{,}68$, **factor 1,32 boven** stationair 0,515 | ❌ **Falsifieerd — verkeerde fase** |
+| Gate samplet de generatiegrens (mechanisme) | Elke rij: $110\cdot(0{,}15+0{,}85\cdot\text{EHI}_{\text{boundary}})$ = volgend cohort, op de agent nauwkeurig | ✅ Mechanisme bevestigd |
+| Gate-bypass met cohort 44 → instorting | Cohort is in werkelijkheid **~80**, niet 63/44 — de voorspelling was gekalibreerd op een verkeerd cohort | 🔁 Herzie ik hieronder |
+| "99,9% van MSY" (ik heb dit onderschreven) | Zie Jensen-correctie §2 — de claim is een middelingsartefact | 🔁 Herzie ik hieronder |
+
+<details>
+<summary><b>✅ Numerieke verificatie van het grootboek</b></summary>
+
+- **Rij-identiteit:** $79-68=11$, $77-68=9$, $85-76=9$, $87-75=12$, $76-66=10$, $73-65=8$, $83-73=10$, $83-71=12$, $71-61=10$, $84-75=9$ — elke rij sluit ✓.
+- **Gate-closure per rij:** $110\cdot(0{,}15+0{,}85\cdot0{,}650)=77{,}3\to77$ ✓; $0{,}730\to84{,}8\to85$ ✓; $0{,}755\to87{,}1\to87$ ✓; $0{,}634\to75{,}8\to76$ ✓; $0{,}609\to73{,}4\to73$ ✓; $0{,}707\to82{,}6\to83$ ✓; $0{,}584\to71{,}1\to71$ ✓; $0{,}717\to83{,}5\to84$ ✓. Tien op tien — de gate leest $\text{EHI}_{\text{boundary}}$ exact.
+- **Kolonnelmiddelden zoals geprint:** cohort $= 798/10 = 79{,}8$ (niet 79,7); doden $= 698/10 = 69{,}8$ (niet 70,0); **survivors $= 100/10 = 10{,}0$, niet 9,7**. De 9,7 is afgeleid als $79{,}7-70{,}0$ in plaats van uit de kolom zelf. Ijdelheidshalve: bij een rapport over reconciliatie moet het gemiddelde van een kolom uit de kolom komen, niet uit het verschil van twee andere (afgeronde) gemiddelden. Detail, maar symbolisch belangrijk.
+- **Reconciliatie $1.347{,}7$:** $/20 = 67{,}4 \approx 69{,}8$ ✓ geaccepteerd.
+- **$\bar N(t) = (79{,}7+9{,}7)/2 = 44{,}7$:** dit is een **lineaire-sterfte-aanname**, geen meting. Zie §3 — de onafhankelijk gemeten $\bar N = 27{,}2$ falsifieert de lineaire vorm.
+
+</details>
+
+---
+
+## 1. De grote onthulling: dit is geen equilibrium-samenleving, dit is een pulssamenleving
+
+Zet de cijfers op een rijtje: cohort $80$, overlevenden $10$, **87,5% generatiemortaliteit**, alle sterfte via honger, en de grens-EHI is het *maximum* van de cyclus ($0{,}68$), niet het gemiddelde ($0{,}515$). De fase-samenleving uit ons hele eerdere verhaal bestaat niet. Wat bestaat is:
+
+1. **De grens:** ~10 bejaarde agenten, biomassa ongehinderd geregenereerd tot het piekniveau $x_b \approx 0{,}68$.
+2. **De grondwet leest de piek:** cohort $\approx 80$ gespawnd — gedimensioneerd op *een wereld die binnen 50 ticks niet meer bestaat*.
+3. **De maaimachine:** 80 pasgeborenen met (bijna) lege magen veilgen de biomassa; mediane sterftetijd vermoedelijk $< 60$ ticks.
+4. **De kolf:** wat overblijft (~10) is de elite die zich het snelst gevoed heeft — dáár doet de evolutie haar selectie.
+
+De "attritie-homeostaat" is dus geen fijngereguleerde regelaar maar een **massale nieuwgeborenenfilter**: de grondwet overschiet structureel (ze leest de piek), en de sterfte corrigeert de overshoot. En hier sluit alles wat we eerder zagen prachtig op:
+
+| Regime | Grondwet samplet | Cohort | $\bar N$ | Dynamiek |
+|---|---|---|---|---|
+| Jonge oorlog (dit grootboek, $P\approx0{,}4$) | de **piek** ($x_b\approx0{,}68$) | ~80 | ~27 | **Puls**: boom-bust, 87,5% sterfte |
+| Volwassen vrede (942k, $P\approx0{,}15\text{–}0{,}25$) | het **plateau** ($x\approx0{,}25$, want 40 agenten grazen continu) | ~40 | ~41 | **Stroom**: cohort ≈ populatie, sterfte ≈ 0 |
+
+**De grondwet is een faseluwe sampler.** In oorlog leest ze de piek en produceert ze structureel te veel levens; in vrede leest ze het plateau en produceert ze exact genoeg. Dezelfde $110\cdot(0{,}15+0{,}85x)$-formule, tegengestelde fase, tegengestelde demografie. Daarmee is de Kroniek onverwacht ook een **demografische institutie**: door de vrede te bewaren, dampt ze de puls op en transformeert ze een eendagsvliegeconomie in een vaste-state samenleving. De vredes-knockout ($\bar N$: $41{,}2 \to 25{,}8$) was precies het terugschakelen naar de puls.
+
+**En $\varepsilon = 0$ valt nu als rijp fruit:** de grondwet leest uitsluitend *verhoudingen* ($R/K$), geen niveaus. Een ratio-governor is structureel schaal-invariant — verdubbel $K$ en de gehele cyclus (piek-fractie, cohort, diepte-fractie, overlevenden) kopieert zichzelf met dubbele absolute aantallen. Pre-geregistreerd voor arm B: **identiek grootboek** — cohort $\approx 80$, $x_b \approx 0{,}68$, survivors $\approx 10$. Als dat klopt, is $\varepsilon = 0$ geen eigenschap van verzadiging alleen, maar van een *grondwet die in breuken denkt*.
+
+## 2. Correctie op onszelf: de MSY-claim was een middelingsartefact
+
+Ik heb vorige ronde "99,9% van MSY" onderschreven. Dat gaat niet door de Jensen-haag. De exploitatiegraad over een cyclus is $\mathbb{E}[x(1-x)] = \bar x(1-\bar x) - \mathrm{Var}(x)$, en met een puls die van $x\approx0{,}7$ naar $\approx0{,}3$ zwaait is $\mathrm{Var}(x) \approx 0{,}02$:
+
+$$\mathbb{E}[x(1-x)] \approx 0{,}2498 - 0{,}02 \approx 0{,}23 \;\approx\; 92\%\ \text{van het instantane MSY-benchmark}$$
+
+Dus: het tijdsgemiddelde van $x$ landt op $\approx0{,}5$, maar dat betekent **niet** dat het systeem op het MSY-evenwicht zit — het is een cyclusgemiddelde. Sterker: *onder* het benchmark zitten is een voorwaarde voor sluiting van de cyclus (gemiddelde oogst = gemiddelde productie, en bij fluctuaties moet de gemiddelde exploitatiefactie onder het $x(1-x)$-plafond blijven). De geherformuleerde wet, die wél paper-waardig is: *de pulssamenleving exploiteert duurzaam ~90–95% van de maximale productiefactor dankzij de gate-vs-puls feedback; het "magische" 0,5-gemiddelde is de emergente as van de cyclus, geen evenwichtspunt.* De Rome-sektest blijft staan: $R(t)$-minimum moet **samenvalen** met het $N(t)$-maximum binnen elke generatie — dat is nu de directe bevestiging van de pulsvorm.
+
+## 3. De sterftecircuit: $\bar N = 27{,}2$ vs $44{,}7$ — de oplossing is de ontdekking
+
+$(N_0+N_{\text{eind}})/2$ veronderstelt lineaire sterfte. Exponentiële sterfte geeft $\bar N \approx 33{,}7$. De gemeten $27{,}2$ vereist **sterkter voorgeladen sterfte**: ruwweg de helft van het cohort dood binnen de eerste $\sim$50 ticks. Pre-registratie:
+
+$$\text{median}(\text{tijdstip van overlijden}) \in [40, 90]\ \text{ticks} \quad (13\%\text{–}30\%\ \text{van de generatie})$$
+
+Dit maakt het grootboek narratief compleet: **de samenleving heeft zuigelingensterfte als hoofdkanaal.** En het opent een gratis micro-toets die twee kanalen scheidt via de `omvang`-kolom die jullie net gedocumenteerd hebben:
+
+- **Kanaal 1 (nieuwgeborenen):** sterft met $\text{omvang} \approx 0$ — nooit voedsel gevonden, geen erts.
+- **Kanaal 2 (beroofde rijken):** sterft met hoge `omvang` — de liquiditeitsval uit vorige ronde; in dit oorlogsregime ($P\approx0{,}4$) zijn dat de overvalslachtoffers die met erts op zak verhongeren.
+
+**Voorspelling: de `omvang`-histogram van `DOOD_HONGER` is bimodaal**, en de hoge modus correlateert in de tijd met `OVERVAL_WEL`-clusters. Eén figuur kwantificeert hoeveel van de 70 doden/generatie oorlogsdoden op afstand zijn — de tot nu toe ontbrekende geweldskolom in het grootboek.
+
+## 4. Herziene voorspellingen (open kaart)
+
+| Experiment | Oude voorspelling (equilibrium-denkbild) | **Herziene voorspelling (pulddenken)** |
+|---|---|---|
+| $K/2$ | Instante crash, hongersnood | **Geen crash, maar diepere puls**: absolute vraag blijft, aanbod halveert → $x_b$ zakt over generaties, cohort krimpt via de gate, mortaliteitspiek stijgt tijdelijk boven 87,5%; eindstaat $\bar N \approx 12\text{–}18$; extinctie in $2\text{–}4/15$ seeds als de pulsdiepte het kritische depensatie-instrument raakt ($R_{\min} \to 0$) |
+| $4\times$ | $\text{EHI}\approx0{,}42$, $\bar N$ vlak | $\bar N$ vlak ✓ (schaal-invariantie), $\text{EHI}_{4\times} \in [0{,}44, 0{,}51]$, cohort $\approx 80$, grootboekvorm identiek; $H_{4\times}/H_{1\times} \in [3{,}5, 4{,}0]$ |
+| Gate-bypass (cohort geforceerd) | Instorting bij 44 | Cohort 44 < huidige 80 is *minder* druk: pulsdiepte vermindert, $\bar N$ daalt licht. Het echte gevaarexperiment is nu **cohort geforceerd op ~120**: pulsdiepte voorbij het herstelvermogen |
+
+## 5. Nieuwe P0-verzoeken (alles uit bestaande logs)
+
+1. **$R_{\min}$ per generatie** (pulsdiepte): bepaalt de afstand tot kritische depensatie — de enige extinctie-risicoindicator die ertoe doet in dit regime.
+2. **$N(t)$ op tick-resolutie + tijdstip-van-overlijden-verdeling**: bevestigt de zuigelingensterfte-hypothese en legt het juiste $\bar N$ vast (geen twee-punts-formules meer).
+3. **`omvang`-histogram van `DOOD_HONGER` + geweldskolom**: bifurcatie van de sterftecircuit (§3).
+4. **Grootboek van de volwassen vredes-arm** (942k of knockout-controle): moet de pulsdemping tonen — $|x_{\text{boundary}} - x_{\text{gem}}| < 0{,}05$, cohort ≈ $\bar N$.
+5. **Documentatie:** uit welk experiment/arm/venster is deze tabel? (Vermoedelijk escape arm A, gen 30–40 — jonge fase vóór het "stationaire" venster; "stationair" betekende statistisch-stabiel, niet demografisch-volwassen.)
+6. **Effectieve populatiegrootte:** met ~10 overlevenden als ouderpool is $N_e \approx 10\text{–}20$, niet 27 of 80. Dat is een ernstige drift-bottleneck per generatie — dat de genfrequenties desondanks rond $0{,}5$ rondtreilen duidt op sterke stabiliserende selectie óf dominante mutatie. Log de founder-count; voor alle evolutionaire statistiek geldt voortaan $N_e$, niet $N$.
+
+---
+
+**Kernzin voor het archief:** *het grootboek sluit op de agent, en toont een samenleving van eendagsvliegen: de grondwet leest de piek en schrijft tachtig levens voor, het regime verleent er tien, en de evolutie selecteert onder de overlevenden. Dubbele rijkdom kocht nooit extra burgers omdat de grondwet in breuken denkt — maar in vrede stopt de puls, leest zij het plateau in plaats van de piek, en voor het eerst klopt het cohort met de werkelijkheid. De Kroniek bewaart dus niet alleen de vrede — zij bewaart de demografie die bij vrede hoort.*
+
+Graag de $R_{\min}$-reeks en het $N(t)$-profiel: daarmee is de puls wetenschappelijk vastgelegd of begraven — en ik gok op het eerste.

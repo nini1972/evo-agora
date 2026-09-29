@@ -1,0 +1,108 @@
+# Beoordeling van de review — wat hij goed zag, wat hij miste, en wat de data *echt* zeggen
+
+Kort eindoordeel vooraf: **de waarnemingen in de review zijn betrouwbaar, de interpretatie is op twee van de drie punten onjuist**. Het dashboard faalt niet — het doet precies waarvoor het ontworpen is: het blootlegt dat de evolutionaire uitkomst afwijkt van de ontwerpintentie, én de screenshots bevatten het bewijs van *twee stille defecten in mijn eigen verdedigingslinies* die de reviewer over het hoofd zag. Laten we het systematisch doorlopen.
+
+---
+
+## 1. Scorecard van de review zelf
+
+| Aspect | Oordeel | Toelichting |
+|---|---|---|
+| Verificatieketen (screenshot → Plotly-extractie → JSONL → correlatie) | ✅ sterk | Meerbronnenverificatie is precies goed; de stap "een screenshot alleen is onvoldoende voor een correlatieclaim" is uitstekende epistemische hygiëne. |
+| Kwantificering (12/28, r-waarden, min/max) | ✅ goed | Concrete, reproduceerbare getallen. |
+| Correlatiemethodiek | ❌ zwak | Ruwe Pearson over sterk periodieke, fase-gelockte reeksen; geen detrending, geen lead-lag, geen fasecontrole (zie §2.2). |
+| Significantie vs. effectgrootte | ❌ fout | Bij n ≈ 10⁵ tikrecords is r = 0.008 wél significant (SE(r) ≈ 1/√n ≈ 0.003, dus p ≈ 0.003). "Niet aantoonbaar" is de verkeerde conclusie — het is **aantoonbaar verwaarloosbaar** (r² ≈ 6·10⁻⁵). |
+| Sampling | ⚠️ bias | De emmer-mix (12/28) is gemeten op een **put-moment** (N=28, vlak voor generatiewissel). Dat meet overleving, niet selectie. De mix op reset+1 (N=110) meet wat selectie *koos*. Dat zijn verschillende vragen. |
+| Hypothese-herkomst | ⚠️ onduidelijk | "De drie verwachtingen" — verwacht door wie? De spiraal en de Gini–Shannon-negatieve relatie staan nergens in mijn architectuurdocument; Deel 4 voorspelde expliciet *demping*, geen eliminatie. |
+| Eigen data lezen | ❌ gemiste signalen | clusters ≈ 100 constant, de wederzijdse roof-loop, de histogram-truncatie, de zaagtand — allemaal zichtbaar in zijn eigen screenshots (zie §3). |
+| Toolingbeheersing | ⚠️ | De reviewer botste op de steeds herschreven live-grafiek maar miste de **pauze-checkbox** die daarvoor gebouwd is. |
+
+---
+
+## 2. De drie bevindingen opnieuw geïnterpreteerd
+
+### 2.1 Faseportret — de reviewer zag chaos; dit is een begrensd attractor
+
+De wolk heeft een onderkant bij **EHI ≈ 0.45**. Dat is geen toeval: dat is `vruchtbaar_drempel = 0.45`. Onder die lijn zakt de vruchtbaarheid naar 0.15, krimpt de consumptie, en herstelt R — de demografische poort (verdedigingslinies L2) duwt het traject de wolk niet uit, maar **houdt het boven de extinctiezone**. Een EHI die in 430 generaties nooit onder ~0.40 zakt is de gouverneur die zijn werk doet.
+
+Bovendien: ik heb in Deel 4 van de basisarchitectuur expliciet geschreven dat L2/L3 de amplitude van de Lotka-Volterra-cycli *dempen maar niet elimineren*, en dat dit deels wenselijk is. Een "nette naar binnen spiraalende limietcyclus" was nooit de ontwerpprognose. **Bevinding 1 bevestigt het ontwerp in plaats van het te weerleggen.** Advies: plot het faseportret per *generatie-gemiddelde* in plaats van per tik — de binnen-generatie ruis domineert nu het beeld en maskeert het generatietraject.
+
+### 2.2 Correlaties — waarschijnlijk een fase-artefact
+
+Beide gemeten correlaties zijn verdacht op dezelfde manier: **Gini en Shannon zijn beide monotoon (grofweg) stijgend in de leeftijd van de generatie.** Gini start op 0 bij reset (iedereen 0 erts → mijn `gini()` geeft 0.0) en rampt naar 0.99 vóór de pensioening; Shannon start laag (toernooiselectie concentreert emmers) en druipt via mutaties over emmergrenzen omhoog. Twee ritten tegen dezelfde kloef → r = +0.559 zonder enige causale relatie. De test die de reviewer had moeten draaien:
+
+```
+corr(Gini, Shannon | fase = tik mod 300, venster vast)     # fase-gecontroleerd
+corr(P̄_g, ĒHI_{g+1})                                      # lead-lag op generatiegranulariteit
+```
+
+De contemporaine Gini–parasitair-correlatie (r = +0.008) test bovendien de verkeerde richting: de hypothese is dat parasitisme de *volgende* generatie schaadt, niet dat beide op dezelfde tik bewegen.
+
+### 2.3 Emmer6-dominantie — de échte wetenschappelijke uitkomst
+
+Dit is de kernbevinding, en de reviewer rapporteert haar correct maar dekt haar verkeerd in. De dief (emmer6, 43%) verdringt de gewapende handelaar (emmer8, 18%) niet, en dat is **structureel verklaarbaar uit de architectuur zelf**:
+
+1. **Het institutionele geheugen sterft met het cohort.** Reputaties, archetype-prioren en feiten leven maximaal 300 tikken. Elke generatiewissel opent een vers pool van naïeve slachtoffers. Roof betaalt *direct*; de reputatiekost is vertraagd én wordt aan het eind van de generatie geannuleerd. Dit is een **structurele subsidie op parasitisme** — de grootste single cause.
+2. **Vermogen sterft met het cohort** (geen erfenis). Daarom de Gini-zaagtand 0 → 0.99: binnen-generatie accumulatie, generatie-einde liquidatie. Welvaart kan nooit compounen bij coöperateurs, terwijl roofbuit elke generatie opnieuw te plunderen valt.
+3. **Sampling-bias**: 12/28 is gemeten onder put-survivors. Roofbuit helpt bij overleven van de hongerdieptes; de emmer-mix op reset+1 kan anders zijn.
+
+---
+
+## 3. Wat de review in zijn eigen screenshots miste (hier wordt het interessant)
+
+**3.1 — De clusters-lijn ≈ 100, constant: twee van mijn verdedigingslinies zijn inert.**
+Dit is de belangrijkste gemiste observatie. In 9 dimensies is de typische genoomafstand tussen willekeurige genomen E[d²] = 9/6 → **d ≈ 1.22**. Met `sigma_share = 0.30` is de sharing-kernel exp(−(1.22/0.30)²) ≈ **7·10⁻⁸** — fitness-sharing (L3a) deelt dus letterlijk niets, de massa is altijd ≈ 1 (zelf). En `delta_soort = 0.35` ≪ 1.22 → vrijwel elk genoom is een eigen cluster → cap van 50% bindt nooit, en de inteeltbarrière (0.08) triggert nooit. **De hele genetische arm van de anti-parasietverdediging staat in 9-D effectief uit.** De fix is een regel:
+
+```python
+# evolution.py — dimensie-correctie
+self.sigma_share = sigma_share * np.sqrt(N_GENES)   # 0.30 → ~0.90
+self.delta_soort  = delta_soort  * np.sqrt(N_GENES) # 0.35 → ~1.05
+```
+
+**3.2 — De oorlogsbelasting heft op de verkeerde variabele.**
+`conflictkostenfactor` kijkt naar het *gemiddelde agressie-gen* (p̄ ≈ 0.6 bij emmer6-dominantie → mult ≈ 1.0–1.3, nauwelijks progressief), terwijl het histogram de *gerealiseerde* roofdruk toont: pieken van 350+ overvallen per 25 tikken bij N ≈ 30–100 — een per-capita roof frequentie van 0.1–0.3 per tik. Koppel de multiplier aan een EMA van gerealiseerde roofdruk, niet aan een gen:
+
+```python
+# world.stap(): na de actiefase
+self._roofdruk_ema = 0.95 * self._roofdruk_ema + 0.05 * (roofs_deze_tick / max(1, n_levend))
+# conflictkostenfactor(roofdruk_ema) met drempel θ ≈ 0.03
+```
+
+**3.3 — De wederzijdse roof-loop (#49818 ↔ #49740).**
+De gebeurtenisentabel toont twee agenten die ticks 135826–135828 *om de beurt* elkaars OVERVAL_WEL slaan, tot DOOD_HONGER. Dat is een attritie-oor zonder uitweg: `u_aanval` heeft een hebzucht-term maar geen **vergeldings-/vermijdings-term** — een bekende agressor is niet gevaarlijker, alleen minder vertrouwd, en lage T *verhoogt* de aantrekkelijkheid van roof. Er ontbreekt iets als:
+
+```python
+vergelding = 0.8 * kracht_doel * (1.0 - T)          # verwachte wraak van een overlevende vijand
+u -= g.waarde("risico_aversie") * vergelding
+```
+
+**3.4 — Klein maar veelzeggend**: het gebeurtenissen-histogram begint pas bij ~100k. Dat is de 60k-cap van de gebeurtenissen-ringbuffer die bij dit event-tempo slechts ~28k tikken bestrijkt — verwacht gedrag (volledige historie zit in de JSONL), maar de review gebruikte het histogram wel als bewijsmateriaal zonder dit te vermelden.
+
+**3.5 — De zaagtand N: 20 ↔ 110** is het cohort-pensioen, geen crash. Wel relevant: de put van ~20 zit dicht tegen `min_populatie = 14`. Op termijn is staggered/steady-state reproductie de volwassenere oplossing.
+
+**3.6 — Flat best-fitness over 430 generaties**: deels een eigen bekentenis — in mijn referentie-implementatie is de `nakomelingen`-component (gewicht 1.6, het *zwaarste* gewicht!) **nooit bedraad**; en in een generatie-GA is "aantal nakomelingen" als fitnesscomponent bovendien circulair (selectie *is* het nakomelingenaantal). Als Gemini dit ook niet heeft opgelost, weegt fitness feitelijk alleen levensduur + erts + handel. Dit hoort thuis in de diff-audit.
+
+---
+
+## 4. Diff-audit tegen Gemini's wijzigingen — onmisbaar, want ik zie ze niet
+
+Ik kan niet zien wat Gemini heeft aangepast; enkele van bovenstaande dynamieken kunnen daaruit voortkomen. Controleer tegen mijn vier invarianten: (1) gebruikt telemetry/visualisatie RNG? (dan breekt reproduceerbaarheid); (2) is de wereld nog strikt notaris/fysica? (3) is élke beslissingsdrempel nog genomisch geparametriseerd? (4) wat zijn de huidige `FitnessGewichten`, loot-fracties (0.35/0.25) en `conflict_cap`? Een wijziging daar verschuift alles hierboven.
+
+## 5. Prioriteitenlijst
+
+| Prio | Fix | Raakt |
+|---|---|---|
+| **P1** | **Kroniek**: wereld-level, vervallend institutioneel geheugen (emmer→(Σs,n), ×0.9 per generatie); newborns initialiseren archetype-prioren met ruis hieruit. Dit doodt de parasitisme-subsidie zonder strategie te dicteren — de wereld biedt een instelling, geen advies. | §2.3.1 |
+| **P1** | √d-schaling van `sigma_share`/`delta_soort` | §3.1 |
+| P2 | Conflictkosten op gerealiseerde roofdruk-EMA | §3.2 |
+| P2 | Vergeldings-/vermijdingsterm in `u_aanval` | §3.3 |
+| P3 | Erfenisfractie (of kadaver-recycling uitbreiden), telemetry: gem. fitness *per emmer* + emmer-mix op reset+1 én op put | §2.3, §3.5 |
+| P3 | Staggered generaties (grote ingreep; later) | §3.5 |
+
+## 6. Experimentprotocol vóór de volgende review
+
+Eén run, live, zonder controle-arm is geen falsificatie. Draai per arm ≥10 seeds: (A) baseline, (B) +kroniek, (C) +√d-fix, (D) beide. Formuleer het succescriterium *vooraf* — bijv. "P̄ < 0.25 over de laatste 50 generaties én trendmatige stijging van emmer8-aandeel (Mann-Kendall)" — en beoordeel de faseportretten op generatiegranulariteit met lead-lag `corr(P̄_g, ĒHI_{g+1})`.
+
+---
+
+**Slotconclusie.** De review verdient een 7/10: uitstekend observator, matig statisticus, en het schoot voorbij aan de belangrijkste inzichten die in zijn eigen screenshots zaten. De juiste lezing is niet "drie verwachtingen niet bevestigd", maar: *het dashboard werkt, het ecosysteem is stabiel begrensd (poort functioneert), het parasitisme persists dankzij een structurele geheugen-/erfenissubsidie, en twee van mijn verdedigingsmechanismen bleken dimensionaal inert — een volwaardige wetenschappelijke bevinding met twee concrete, goedkope fixes.*

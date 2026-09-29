@@ -1,0 +1,45 @@
+# Kort antwoord: het overleeft, maar het gedijt niet — "stabiel, maar ziek"
+
+Goed nieuws eerst, want er is degelijke vooruitgang zichtbaar ten opzichte van de run die we eerder reviewden (t≈135k). Maar de vijf panelen tonen ook een **regimeshift naar een armoede-evenwicht** die de aandacht vraagt. Panel voor panel:
+
+## Wat aantoonbaar beter gaat
+
+| Signaal | Eerder (t≈135k) | Nu (t≈360k, gen ~1200) | Lezing |
+|---|---|---|---|
+| Parasitaire druk P | 0.41, emmer6 = 43% ("pure dief") | **0.06–0.17** | De dieveneconomie is gebroken; fenotype-emmers zien er gemengd uit i.p.v. emmer6-gedomineerd |
+| Clusters-lijn | ~100, constant (niching inert) | **10–20, fluctuerend** | De √d-fix is duidelijk toegepast en werkt — fitness-sharing bindt nu echt |
+| Shannon | — | **2.06 / ln(9)=2.20 → 94% van max** | Diversiteit uitstekend in stand gehouden |
+| Gebeurtenistempo | pieken 350+/25 tik (oorlog) | **~0 na tick 55k** (de hoge rode spieken zijn historie uit de ringbuffer; het recente tijdvak is stil) | De oorlogseconomie is ten einde |
+| Extinctie | — | **0 in 1200 generaties** | L5 (HoF + redding) doet zijn werk |
+
+Ook het faseportret laat zien dat het systeem in de lage-P hoek blijft plakken — geen terugkeer naar het parasitaire regime.
+
+## De drie rode vlaggen
+
+**1. De EHI-collapse: 0.59 → 0.22.** Dit is de grootste verandering. De hele attractor in het faseportret is gezakt van EHI 0.45–0.75 naar **0.15–0.35** — structureel *onder* de vruchtbaarheidspoort (θ=0.45), dus de vruchtbaarheid zit permanent op de vloer van 0.15. Mijn eerdere claim dat de poort EHI boven ~0.40 zou houden is hiermee **gefalsificeerd in het nieuwe regime**: de poort dempt populatie-oscillaties (geen crash, kloot 40–65), maar *verhindert geen gedeprimeerd bronnenevenwicht* — de vloer van 0.15 houdt demografische druk in stand, en de consumptie trekt R permanent laag. Mijn primaire hypothese: **Jevons-paradox** — de prijseconomie maakte oogsten/verwerven efficiënter (specialisatie, handel), en het rendement daarvan is geïnvesteerd in méér consumptie, niet in ecosysteemherstel. Dat zou een prachtige bevinding zijn — mits we eerst een config-wijziging uitsluiten (vergelijk `config_hash` in de JSONL-header met de vorige run: zelfde `draagkracht`, zelfde `n_bronnen`?).
+
+**2. De "stervende rijken".** De gebeurtenistentabel staat vol `DOOD_HONGER`-gevallen — waaronder agenten met **42 en 56 erts** op zak. Dat is een economische pathologie, geen toeval: in een hongersnood is erts waardeloos (niemand heeft voedseloverschot, dus geen prijs maakt voedsel te koop — het klassieke "geld kan honger niet kopen als het aanbod nul is"). Individueel rationeel (erts mijnen voor ruil), collectief fataal (er bestaat geen aanbod). En er is een subtieler probleem: de fitnesscomponent `rijkdom` telt erts **bij overlijden** — een agent die rijk *sterft* scoort nog steeds +erts/40. Evolutie beloont dus deels "rijk sterven" boven "gezond leven". Dat is een misalignment in de fitnessfunctie die ik zelf heb ontworpen.
+
+**3. κ=0.13, opvallend stabiel, en Gini-pieken tot 1.0.** De coop-EMA zit klem op een laag niveau — maar let op: κ update alleen bij handel/roof-gebeurtenissen, en die zijn zeldzaam geworden, dus de 0.13 is deels een **stale artefact** uit de oorlogsperiode. Reëler signaal: het groene handelsvolume in het histogram is vrijwel onzichtbaar — de prijseconomie draait op laag vuur. En de Gini-zaagtand die elke generatie naar **1.0** piekt betekent: één agent bezit aan het einde van de generatie vrijwel alles. Winner-takes-most binnen het cohort, daarna liquidatie door het pensioen — de Kroniek/erfenis-upgrade lijkt (nog) niet actief.
+
+## Diagnostiek om vandaag te draaien (JSONL-queries, goedkoop)
+
+1. **Jevons-toets**: plot EHI(t) over de volledige historie met changepoint-detectie (bijv. CUSUM) en leg het breekpunt naast de handelsvolume-adoptiecurve. Valt de EHI-collapse samen met de opkomst van handel? Dan is het endogeen en interessant — publiceerbaar zelfs.
+2. **Sterving-rijk teller**: aantal `DOOD_HONGER` met `omvang ≥ 10` per generatie. Als dit structureel >0 is, is de hongersnood-liquiditeitsval reëel.
+3. **Handelsvolume per generatie** (HANDEL_ESCROW+CREDIT count): als dit richting nul gaat, zijn de bid-ask spreads of de ρ-schattingen te wijd bij lage trust — of er is simpelweg niets te ruilenvanwege punt 1.
+4. **Top-1 vermogensaandeel** per tik, om het Gini→1.0-piek te kwalificeren.
+
+## Prioriteitenlijst (herzien)
+
+| Prio | Interventie | Raakt |
+|---|---|---|
+| **P1** | Vruchtbaarheidsvloer 0.15 → 0.05, of poort steiler maken (geen vloer onder EHI 0.3) — demografische druk moet mee zakken met de bronbasis | Rode vlag 1 |
+| **P1** | Fitness-fix: `rijkdom`-component wegen met overlevingsindicator (of × levensduur/tpg) — stop met "rijk sterven" belonen | Rode vlag 2 |
+| P2 | Oogst-wrijving bij schaarste: harvest-cap 8 → schalen met node-hoeveelheid, zodat uitputting duurder wordt | Rode vlag 1 |
+| P2 | κ-tijdsverval (naar prior bij gebeurtenis-armoede) + handelsaantal per 100 tik als aparte metrieκ | Rode vlag 3 |
+| P3 | Honger-gedrag: hongerige agenten (h>0.7) moeten lege voedsel-nodes met q<1 nog kunnen "schrapen" (kleine opbrengst) — breekt de liquiditeitsval zonder strategie voor te schrijven | Rode vlag 2 |
+| P3 | Staggered generaties (zaagtand en cohort-reset blijven de grootste structurele storende factor) | algemeen |
+
+## Eindoordeel
+
+De samenleving is **gepacificeerd maar verarmd**: parasitisme is onder controle, diversiteit en niching functioneren, extinctie is 1200 generaties vermeden — dat zijn echte, meetbare overwinningen op de problemen uit de vorige review. Maar het systeem zit in een subsistentie-evenwicht: het ecosysteem op ~22% van draagkracht, handel op laag vuur, en sterfte door honger terwijl vermogen onbesteed sterft. De economie *werkt* — ze heeft alleen niets te verdelen. De Jevons-toets (diagnostiek 1) is het belangrijkste experiment: als de EHI-collapse hand-in-hand ging met handelsadoptie, hebben jullie per ongeluk de eerste empirische demonstratie in de simulatie gevonden dat efficiëntie zonder ecologische begrenzing zichzelf uitput. Dat zou ik morgen als eerste draaien.

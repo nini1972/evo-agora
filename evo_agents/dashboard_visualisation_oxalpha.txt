@@ -1,0 +1,1073 @@
+# Visualisatiedashboard voor "Evolving Agents" — Ontwerp & Referentie-implementatie
+
+---
+
+## Deel 1 — Chain of Thought: ontwerpoverwegingen vóór de dashboard-code
+
+**Stap 0 — De simulatie is heilig; het dashboard is een consument.**
+De belangrijkste architectonische beslissing staat vast vóór ik ook maar één regel UI denk: het dashboard mag de simulatie **nooit** beïnvloeden. Concreet betekent dat drie regels: (1) de observator leest alleen, schrijft nooit terug naar `Wereld`; (2) de telemetrielaag gebruikt géén RNG — anders breekt ik de reproduceerbaarheid die ik in de basisarchitectuur als invariant heb afgedwongen; (3) als er géén observatoren gekoppeld zijn, is de overhead ≈ één lelijke-lijstcheck per tick. Daarom kies ik voor het **observer-patroon** met een smal protocol (`na_tik`, `na_generatie`, `gebeurtenis`), niet voor logging aanroepen verspreid door de simulatielogica.
+
+**Stap 1 — Wat is er überhaupt te zien? Drie informatielagen.**
+Ik inventariseer wat de simulatie uniek maakt en welke vragen een onderzoeker erover wil beantwoorden:
+
+- **Ruimtelijke laag**: waar zijn bronnen, wie jaagt wie, waar ontstaan handelsnetwerken? → kaartweergave.
+- **Dynamische laag**: hoe bewegen populatie, genfrequenties, ongelijkheid en instituties door de tijd? → tijdsreeksen.
+- **Evolutionaire laag**: convergeert het genoom? Verdwijnt diversiteit? Wint coöperatie of parasitisme? → generatiepanelen en faseportretten.
+
+Cruciaal inzicht: de interessantste wetenschap zit in de **koppeling tussen lagen** — bijvoorbeeld de Lotka-Volterra-achtige cyclus tussen parasitaire druk en ecosysteemgezondheid. Daarom moet het dashboard een **faseportret** kunnen tekenen `(P_parasitair, EHI)`, niet alleen losse tijdsreeksen.
+
+**Stap 2 — Metrieken moeten exact gedefinieerd zijn, niet "een indicatie".**
+Een dashboard zonder formules is decoratie. Ik definieer daarom nu alvast, want de telemetrielaag gaat ze berekenen:
+
+- **Welvaartsongelijkheid**: Gini-coëfficiënt over de ertsvoorraden, `G = (n+1 − 2·Σᵢ Cᵢ/Cₙ)/n` (Cᵢ = cumulatieve som, gesorteerd oplopend).
+- **Fenotypediversiteit**: Shannon-entropy `H′ = −Σₖ pₖ ln pₖ` over de 9 fenotype-emmers (3×3-grid uit `fenotype_bucket`), plus het aantal greedy-clusters (δ = 0.35) uit de evolutiemotor.
+- **Parasitaire druk**: `P = (1/N)·#{i : agressieᵢ > 0.6 ∧ coöperatieᵢ < 0.3}`.
+- **Coöperatiegraad**: EMA κ over gebeurtenissen, `κ ← 0.92·κ + 0.08·w` met w = 1 voor geslaagde handelsafwikkelingen en w = 0 voor geslaagde overvallen. Dit is dé graadmeter voor de centrale onderzoeksvraag (wint coöperatie het van roof?).
+
+**Stap 3 — Datacontract eerst, frontends later.**
+Ik zie te vaak dat visualisatiecode direct op interne objecten (`agent.genoom.g[3]`) prikt; dat breekt bij elke refactor. Ik definieer daarom **stabiele, bevroren dataklassen** (`TikSteekproef`, `GeneratieSteekproef`, `Gebeurtenis`, `RuimtelijkeMomentopname`) met een schemaversie (`evotelemetry/v1`). Elke frontend — matplotlib, Dash, later Grafana of een notebook — consumeert uitsluitend díé contracten.
+
+**Stap 4 — Twee verbruiksmodi, één opslagformaat.**
+Er zijn twee fundamenteel verschillende gebruikersscenario's:
+
+1. **Live observatie** ("wat gebeurt er nú?") — lage latentie, tail-weergave, frames mogen vallen.
+2. **Analyse/replay** ("waarom crashte run 42 in generatie 17?") — volledige fiducialiteit, scrollen, scrubben.
+
+Beide bedien ik met één formaat: een **append-only JSONL-sink** (elke regel een zelfstandig JSON-object met `soort`-discriminator) plus **ringbuffers** in RAM voor de live-tail. Ringbuffer = backpressure-beleid: het dashboard dat achterloopt laat frames vallen in plaats van de simulatie te blokkeren; de JSONL behoudt altijd volledige historie.
+
+**Stap 5 — Downsampling is een wetenschappelijke vereiste, geen cosmetica.**
+Een browser die 20.000 punten per spoor tekent wordt trager dan de simulatie. Maar naïeve stride-downsampling (elk 20e punt) knipt precies de pieken weg waarin je geïnteresseerd bent — een extinctie-uitloop van 3 tikken verdwijnt. Daarom implementeer ik **LTTB (Largest-Triangle-Three-Buckets)**: Downsampling die visuele vormbehoud garandeert binnen een budget van ~900 punten per spoor.
+
+**Stap 6 — Stackkeuze: twee complementeerde frontends in plaats van één zware.**
+- **Frontend A — `viz_matplotlib.py`**: nul extra dependencies, één proces, de simulatie loopt *binnen* de render-lus (`FuncAnimation` doet per frame een paar `wereld.stap()`-calls). Ideaal tijdens ontwikkeling; geen threading, dus geen locks.
+- **Frontend B — `dashboard_dash.py`**: Plotly/Dash in de browser; simulatie draait in een eigen thread en schrijft onder een lock in de registratie; Dash polled met `dcc.Interval`. Ideeël voor demos en interactieve analyse (zoom, hover, tabbladen, replay-scrubber).
+
+Beide delen dezelfde `TelemetrieRegistratie` — daarmee is de keuze frontend een deployment-kwestie, geen architectuurkwestie.
+
+**Stap 7 — Randgevallen die het ontwerp moeten overleven.**
+Totale extinctie (populatie 0 — juist dán wil je kijken wat er gebeurde!), lege buffers bij opstarten, NaN vóór de eerste handelsgebeurtenis (κ is nog ongedefinieerd), thread-races (regel: **kopieer onder de lock, teken buiten de lock**), en geheugenbegroting: een tik-record is ~40 floats ⇒ 20.000 tikken ≈ enkele MB; ruimtelijke momentopnames zijn de enige zware post en krijgen daarom een eigen, kleinere ringbuffer (cap 1500 ≈ 7500 tikken geschiedenis bij cadans 5).
+
+Pas ná deze keten volgt de implementatie.
+
+---
+
+## Deel 2 — Architectuur
+
+```
+┌─────────────────────────── world.py (onveranderd domein) ──────────────────────┐
+│  stap() ──► [7 injectiepunten, allemaal additief] ──► observers[]              │
+└───────────────┬────────────────────────────────────────────────────────────────┘
+                ▼  (smal observer-protocol; lees-only, rng-vrij)
+┌────────────────────────── telemetry.py ────────────────────────────────────────┐
+│  TelemetrieRegistratie                                                         │
+│   ├─ ringbuffers:  tikken (20k) · gebeurtenissen (60k) · ruimtelijk (1.5k)     │
+│   ├─ afgeleide metrieken: Gini · Shannon · P_parasitair · κ-EMA                │
+│   ├─ JSONL-sink  (volledige fiducialiteit, schema evotelemetry/v1)             │
+│   └─ lees-API: tik_arrays() · laatste_ruimtelijk() · gebeurtenis_matrix()      │
+│                       │                                   │                    │
+│            kopie-onder-lock                          laad_uit_bestand()         │
+│                       ▼                                   ▼                    │
+┌────────── viz_matplotlib.py ───────────┐   ┌────────── dashboard_dash.py ──────┐
+│  FuncAnimation; sim loopt in           │   │  SimulatieRunner-thread           │
+│  de render-lus; geen threads           │   │  dcc.Interval polling · 4 tabbladen│
+│  kaart · demografie · genen · instituten│   │  kaart(+scrubber) · reeksen ·      │
+└────────────────────────────────────────┘   │  evolutie · gebeurtenissen         │
+                                             └───────────────────────────────────┘
+                                                      ▲
+                                        run_dashboard.py  (--modus live|dash|replay)
+```
+
+---
+
+## Deel 3 — Injectiepunten in `world.py` (additief, 7 stukken)
+
+De simulatie blijft volledig functioneel zonder deze regels (observatorlijst leeg ⇒ kosten ≈ 0).
+
+```python
+# ── (1) bovenin world.py ──
+from telemetry import Gebeurtenis, GebeurtenisType
+```
+
+```python
+# ── (2) einde van Wereld.__init__ ──
+self.observers: list = []                      # duck-typed: na_tik/na_generatie/gebeurtenis
+self.tick_per_gen = TICKS_PER_GENERATIE        # leesbaar voor de telemetrie
+
+def _meld(self, type: GebeurtenisType, actoren: list[Agent], omvang: float = 0.0) -> None:
+    """Enige toegestane koppeling wereld->observatoren. Lees-only, geen RNG."""
+    if not self.observers:
+        return
+    g = Gebeurtenis(tik=self.tick, type=type,
+                    actor_ids=tuple(a.id for a in actoren),
+                    posities=tuple(tuple(a.pos) for a in actoren),
+                    omvang=float(omvang))
+    for o in self.observers:
+        o.gebeurtenis(g)
+```
+
+```python
+# ── (3) einde van Wereld.stap(), ná self.tick += 1 en vóór de generatiecheck ──
+for o in self.observers:
+    o.na_tik(self)
+```
+
+```python
+# ── (4) in _aanval: na het succesblok (na de premie-regel) ──
+self._meld(GebeurtenisType.OVERVAL_WEL, [aanvaller, doel], roof_erts + roof_voedsel)
+# ── en aan het eind van het faalblok (na doel.energie -= 2.0) ──
+self._meld(GebeurtenisType.OVERVAL_MISLUKT, [aanvaller, doel], 0.0)
+```
+
+```python
+# ── (5) in markeer_feit: na dader.stat.feiten += 1 ──
+self._meld(GebeurtenisType.WANPRESTATIE, [dader, slachtoffer], 1.0)
+# ── en na dader.vogelvrij = True ──
+self._meld(GebeurtenisType.VOGELVRIJ, [dader], dader.stat.feiten)
+```
+
+```python
+# ── (6) in stap(), in de dood-loop, direct na "if a.energie <= 0.0:" ──
+self._meld(GebeurtenisType.DOOD_HONGER, [a], float(a.erts))
+```
+
+```python
+# ── (7) in _reproduceer: NA "for g in kinderen_genomen: self.spawn(g)"
+#        en VLAK VÓÓR "self.generatie_archief.clear()" ──
+for o in self.observers:
+    o.na_generatie(self, self.motor)
+```
+
+*(De afwikkelstatussen `escrow`/`credit-ok` in `wikkel_af` hoeven níét apart gemeld: de registratie telt handelsvolume via de gebeurtenissen die via `markeer_feit`/`_aanval` ontstaan — en voor succesvolle handel voegen we één melding toe in beide succenstakken van `wikkel_af`:*
+
+```python
+self._meld(GebeurtenisType.HANDEL_ESCROW if wijze is Wijze.ESCROW
+           else GebeurtenisType.HANDEL_CREDIT,
+           [aanbieder, antwoorder], geeft.hoeveelheid + vraagt.hoeveelheid)
+```
+
+*)*
+
+---
+
+## Deel 4 — `telemetry.py` — contracten, registratie, metrieken, sink
+
+```python
+# ── bestand: evolib/telemetry.py ──────────────────────────────────────────
+"""Telemetrielaag: stabiele datacontracten + ringbuffer-registratie +
+JSONL-sink. Lees-only t.o.v. de wereld, RNG-vrij, thread-safe."""
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+import os
+import threading
+import time
+from bisect import bisect_left
+from collections import deque
+from dataclasses import dataclass, asdict
+from enum import Enum
+
+import numpy as np
+
+from genome import GENE_NAMEN, N_GENES
+
+TELEMETRI_SCHEMA = "evotelemetry/v1"
+
+
+# ── 1. Datacontracten (bevroren; frontends kennen niets anders) ───────────
+class GebeurtenisType(Enum):
+    HANDEL_ESCROW = 1
+    HANDEL_CREDIT = 2
+    WANPRESTATIE = 3
+    OVERVAL_WEL = 4
+    OVERVAL_MISLUKT = 5
+    DOOD_HONGER = 6
+    VOGELVRIJ = 7
+
+
+@dataclass(frozen=True)
+class TikSteekproef:
+    tik: int
+    generatie: int
+    populatie: int
+    totale_bron: float
+    ehi: float
+    conflictmult: float
+    vruchtbaarheid: float
+    vogelvrij: int
+    open_schulden: int
+    parasitair: float          # aandeel (agressie>.6 & cooperatie<.3)
+    coop_ema: float            # NaN vóór eerste relevante gebeurtenis
+    gini_erts: float
+    shannon: float
+    gen_gem: tuple[float, ...]     # lengte 9, volgorde GENE_NAMEN
+    gen_std: tuple[float, ...]
+    bucket_tellingen: tuple[int, ...]  # lengte 9, index = a*3+c
+
+
+@dataclass(frozen=True)
+class GeneratieSteekproef:
+    generatie: int
+    beste_fitness: float
+    gemiddelde_fitness: float
+    n_clusters: int
+    hof_top: tuple[tuple[float, tuple[float, ...]], ...]
+    component_gem: tuple[float, ...]   # gem. bijdragen: lev/rijkdom/nakom/overl/handel/straf
+
+
+@dataclass(frozen=True)
+class Gebeurtenis:
+    tik: int
+    type: GebeurtenisType
+    actor_ids: tuple[int, ...]
+    posities: tuple[tuple[int, int], ...]
+    omvang: float
+
+
+@dataclass(frozen=True)
+class RuimtelijkeMomentopname:
+    tik: int
+    bronnen: tuple[tuple[int, int, int, float], ...]       # x, y, res-int, hoeveelheid
+    agenten: tuple[tuple[int, int, int, tuple[int, int], float, bool], ...]
+    # id, x, y, bucket, energiefractie, vogelvrij
+
+
+# ── 2. Metrieken (exacte definities) ──────────────────────────────────────
+def gini(waarden: np.ndarray) -> float:
+    w = np.sort(np.asarray(waarden, dtype=float))
+    n = w.size
+    totaal = w.sum()
+    if n == 0 or totaal <= 0.0:
+        return 0.0
+    cumsom = np.cumsum(w).sum()
+    return float((n + 1.0 - 2.0 * cumsom / totaal) / n)
+
+
+def shannon(tellingen: np.ndarray) -> float:
+    p = tellingen[tellingen > 0].astype(float)
+    tot = p.sum()
+    if tot == 0.0:
+        return 0.0
+    p /= tot
+    return float(-(p * np.log(p)).sum())
+
+
+def lttb(xs: np.ndarray, ys: np.ndarray, m: int = 900) -> tuple[np.ndarray, np.ndarray]:
+    """Largest-Triangle-Three-Buckets: downsampling met vormbehoud."""
+    n = xs.size
+    if m >= n or m < 3:
+        return xs, ys
+    kx = np.empty(m)
+    ky = np.empty(m)
+    kx[0], ky[0] = xs[0], ys[0]
+    kx[-1], ky[-1] = xs[-1], ys[-1]
+    emmer = (n - 2) / (m - 2)
+    a = 0
+    for i in range(1, m - 1):
+        s = min(max(int(math.floor((i - 1) * emmer)) + 1, 1), n - 1)
+        e = min(max(int(math.floor(i * emmer)) + 1, s + 1), n)
+        sv = min(max(int(math.floor(i * emmer)) + 1, 1), n - 1)
+        ev = min(max(int(math.floor((i + 1) * emmer)) + 1, sv + 1), n)
+        gem_x = float(xs[sv:ev].mean()) if ev > sv else float(xs[-1])
+        gem_y = float(ys[sv:ev].mean()) if ev > sv else float(ys[-1])
+        ax, ay = xs[a], ys[a]
+        opp = np.abs((gem_x - ax) * (ys[s:e] - ay) - (gem_y - ay) * (xs[s:e] - ax))
+        k = s + int(np.argmax(opp))
+        kx[i], ky[i] = xs[k], ys[k]
+        a = k
+    return kx, ky
+
+
+# ── 3. JSON-hulp (Enum-veilig) ────────────────────────────────────────────
+def _json_klaar(o):
+    if isinstance(o, Enum):
+        return o.name
+    if isinstance(o, (tuple, list)):
+        return [_json_klaar(v) for v in o]
+    if isinstance(o, dict):
+        return {k: _json_klaar(v) for k, v in o.items()}
+    return o
+
+
+# ── 4. Registratie ────────────────────────────────────────────────────────
+_COOP_GEWICHT = {
+    GebeurtenisType.HANDEL_ESCROW: 1.0,
+    GebeurtenisType.HANDEL_CREDIT: 1.0,
+    GebeurtenisType.OVERVAL_WEL: 0.0,
+}
+
+
+class TelemetrieRegistratie:
+    def __init__(self, sink_pad: str | None = None,
+                 cap_tikken: int = 20000, cap_gebeurtenissen: int = 60000,
+                 cap_ruimtelijk: int = 1500, ruimtelijk_interval: int = 5):
+        self.lock = threading.RLock()
+        self.tikken: deque[TikSteekproef] = deque(maxlen=cap_tikken)
+        self.generaties: deque[GeneratieSteekproef] = deque(maxlen=512)
+        self.gebeurtenissen: deque[Gebeurtenis] = deque(maxlen=cap_gebeurtenissen)
+        self.ruimtelijk: deque[RuimtelijkeMomentopname] = deque(maxlen=cap_ruimtelijk)
+        self.ruimtelijk_interval = ruimtelijk_interval
+        self.header: dict = {"schema": TELEMETRI_SCHEMA}
+        self._coop_ema = float("nan")
+        self._ruimtelijk_teller = 0
+        self._sink = None
+        if sink_pad:
+            self.open_sink(sink_pad)
+
+    # ── sink ─────────────────────────────────────────────────────────────
+    def open_sink(self, pad: str) -> None:
+        os.makedirs(os.path.dirname(pad) or ".", exist_ok=True)
+        nieuw = not os.path.exists(pad) or os.path.getsize(pad) == 0
+        self._sink = open(pad, "a", encoding="utf-8")
+        if nieuw:
+            self._schrijf("header", self.header)
+
+    def koppel_header(self, seed: int, config: dict) -> None:
+        self.header.update({
+            "seed": int(seed),
+            "tijdstip": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "config_hash": hashlib.sha1(
+                repr(sorted(config.items())).encode("utf-8")).hexdigest()[:12],
+            "config": config,
+        })
+        if self._sink is not None:
+            self._schrijf("header", self.header)
+
+    def _schrijf(self, soort: str, obj) -> None:
+        if self._sink is None:
+            return
+        self._sink.write(json.dumps(
+            {"soort": soort, "data": _json_klaar(asdict(obj))},
+            allow_nan=True) + "\n")
+        self._sink.flush()
+
+    # ── observer-API (door Wereld aangeroepen) ───────────────────────────
+    def na_tik(self, wereld) -> None:
+        levend = [a for a in wereld.agents.values() if a.levend]
+        n = len(levend)
+        if n:
+            genmat = np.array([a.genoom.g for a in levend])
+            gem = genmat.mean(axis=0)
+            std = genmat.std(axis=0)
+            buckets = np.zeros(9, dtype=int)
+            for a in levend:
+                buckets[a.bucket[0] * 3 + a.bucket[1]] += 1
+            parasitair = float(np.mean([
+                1.0 if (a.genoom.waarde("agressie") > 0.6
+                        and a.genoom.waarde("cooperatie") < 0.3) else 0.0
+                for a in levend]))
+        else:
+            gem = np.zeros(N_GENES)
+            std = np.zeros(N_GENES)
+            buckets = np.zeros(9, dtype=int)
+            parasitair = 0.0
+        bron_tot = wereld.totale_bron()
+        ehi = wereld.gov.gezondheidsindex(bron_tot)
+        rec = TikSteekproef(
+            tik=wereld.tick,
+            generatie=wereld.tick // max(1, getattr(wereld, "tick_per_gen", 300)),
+            populatie=n, totale_bron=round(bron_tot, 2), ehi=ehi,
+            conflictmult=wereld.gov.conflictkostenfactor(wereld._agres_aandeel),
+            vruchtbaarheid=wereld.gov.vruchtbaarheidsfactor(ehi),
+            vogelvrij=len(wereld.vogelvrij_set), open_schulden=len(wereld.schulden),
+            parasitair=parasitair, coop_ema=self._coop_ema,
+            gini_erts=gini(np.array([a.erts for a in levend]) if n else np.zeros(1)),
+            shannon=shannon(buckets),
+            gen_gem=tuple(float(v) for v in gem),
+            gen_std=tuple(float(v) for v in std),
+            bucket_tellingen=tuple(int(v) for v in buckets),
+        )
+        with self.lock:
+            self.tikken.append(rec)
+            self._schrijf("tik", rec)
+            self._misschien_ruimtelijk(wereld)
+
+    def na_generatie(self, wereld, motor) -> None:
+        arch = list(wereld.generatie_archief)
+        if not arch:
+            return
+        genomen = [g for g, _ in arch]
+        stats = [s for _, s in arch]
+        tpg = max(1, getattr(wereld, "tick_per_gen", 300))
+        f = motor._ruwe_fitness(genomen, stats, tpg)
+        w = motor.w
+        comp = (
+            float(np.mean([(s.levensduur / tpg) * w.levensduur for s in stats])),
+            float(np.mean([(s.erts / 40.0) * w.rijkdom for s in stats])),
+            float(np.mean([s.nakomelingen * w.nakomelingen for s in stats])),
+            float(np.mean([float(s.leeft) * w.overleefd for s in stats])),
+            float(np.mean([min(s.handels, 20) / 20.0 * w.handel for s in stats])),
+            float(np.mean([-min(s.feiten, 5) / 5.0 * w.feiten_straf for s in stats])),
+        )
+        rec = GeneratieSteekproef(
+            generatie=stats[0].dood_tick // tpg if stats[0].dood_tick else wereld.tick // tpg,
+            beste_fitness=float(f.max()), gemiddelde_fitness=float(f.mean()),
+            n_clusters=len(set(motor._clustertoewijzing(genomen))),
+            hof_top=tuple((round(fit, 4), tuple(float(v) for v in g.g))
+                          for fit, g in motor.hof.lijst[:3]),
+            component_gem=comp,
+        )
+        with self.lock:
+            self.generaties.append(rec)
+            self._schrijf("generatie", rec)
+
+    def gebeurtenis(self, g: Gebeurtenis) -> None:
+        wgt = _COOP_GEWICHT.get(g.type)
+        if wgt is not None:
+            self._coop_ema = wgt if math.isnan(self._coop_ema) \
+                else 0.92 * self._coop_ema + 0.08 * wgt
+        with self.lock:
+            self.gebeurtenissen.append(g)
+            self._schrijf("gebeurtenis", g)
+
+    def _misschien_ruimtelijk(self, wereld) -> None:
+        self._ruimtelijk_teller += 1
+        if self._ruimtelijk_teller % self.ruimtelijk_interval != 0:
+            return
+        wx, wy = wereld.breedte, wereld.hoogte
+        bezet = {(a.pos[0], a.pos[1]) for a in wereld.agents.values() if a.levend} \
+            if False else None  # bronnen en agenten staan op dezelfde cel; beide gewoon opnemen
+        bronnen = tuple((b.x, b.y, int(b.res), round(b.hoeveelheid, 2))
+                        for b in wereld.grid.values() if b.hoeveelheid > 0.05)
+        agenten = tuple((a.id, a.pos[0], a.pos[1],
+                         (a.bucket[0], a.bucket[1]),
+                         round(a.energie / a.max_energie, 3), bool(a.vogelvrij))
+                        for a in wereld.agents.values() if a.levend)
+        snap = RuimtelijkeMomentopname(tik=wereld.tick, bronnen=bronnen, agenten=agenten)
+        self.ruimtelijk.append(snap)
+        self._schrijf("ruimtelijk", snap)
+
+    # ── lees-API (kopieer-onder-lock; teken buiten de lock!) ─────────────
+    def tik_arrays(self) -> dict[str, np.ndarray]:
+        with self.lock:
+            buf = list(self.tikken)
+        if not buf:
+            return {}
+        veld = lambda naam: np.array([getattr(r, naam) for r in buf], dtype=float)
+        uit = {k: veld(k) for k in
+               ("tik", "generatie", "populatie", "totale_bron", "ehi",
+                "conflictmult", "vruchtbaarheid", "vogelvrij", "open_schulden",
+                "parasitair", "coop_ema", "gini_erts", "shannon")}
+        uit["gen_gem"] = np.array([r.gen_gem for r in buf])   # (T, 9)
+        uit["gen_std"] = np.array([r.gen_std for r in buf])
+        uit["buckets"] = np.array([r.bucket_tellingen for r in buf], dtype=int)
+        return uit
+
+    def generatie_lijst(self) -> list[GeneratieSteekproef]:
+        with self.lock:
+            return list(self.generaties)
+
+    def laatste_ruimtelijk(self) -> RuimtelijkeMomentopname | None:
+        with self.lock:
+            return self.ruimtelijk[-1] if self.ruimtelijk else None
+
+    def ruimtelijk_in_de_buurt(self, tik: int) -> RuimtelijkeMomentopname | None:
+        with self.lock:
+            if not self.ruimtelijk:
+                return None
+            tiks = [s.tik for s in self.ruimtelijk]
+            i = bisect_left(tiks, tik)
+            i = min(i, len(tiks) - 1)
+            return self.ruimtelijk[i]
+
+    def gebeurtenis_matrix(self) -> tuple[np.ndarray, np.ndarray]:
+        with self.lock:
+            buf = list(self.gebeurtenissen)
+        if not buf:
+            return np.zeros(0), np.zeros(0)
+        return (np.array([g.tik for g in buf], dtype=float),
+                np.array([g.type.value for g in buf], dtype=int))
+
+    def recente_gebeurtenissen(self, k: int = 50) -> list[Gebeurtenis]:
+        with self.lock:
+            buf = list(self.gebeurtenissen)
+        return buf[-k:]
+
+    # ── replay ───────────────────────────────────────────────────────────
+    @classmethod
+    def laad_uit_bestand(cls, pad: str) -> "TelemetrieRegistratie":
+        reg = cls()
+        enum_terug = {e.name: e for e in GebeurtenisType}
+        with open(pad, encoding="utf-8") as fh:
+            for regel in fh:
+                bericht = json.loads(regel)
+                soort, d = bericht["soort"], bericht["data"]
+                if soort == "header":
+                    reg.header = d
+                elif soort == "tik":
+                    reg.tikken.append(TikSteekproef(**d))
+                elif soort == "generatie":
+                    reg.generaties.append(GeneratieSteekproef(**d))
+                elif soort == "gebeurtenis":
+                    d["type"] = enum_terug[d["type"]]
+                    reg.gebeurtenissen.append(Gebeurtenis(**d))
+                elif soort == "ruimtelijk":
+                    reg.ruimtelijk.append(RuimtelijkeMomentopname(**d))
+        return reg
+
+    def sluit(self) -> None:
+        if self._sink is not None:
+            self._sink.close()
+            self._sink = None
+```
+
+---
+
+## Deel 5 — `viz_matplotlib.py` — wetenschappelijke live-kijker
+
+```python
+# ── bestand: evolib/viz_matplotlib.py ─────────────────────────────────────
+"""Frontend A: één proces, geen threads. De FuncAnimation-lus stélt zelf de
+simulatietikken (stappen_per_frame) en tekent daarna. Ideaal tijdens dev."""
+from __future__ import annotations
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+BG = np.array([0.043, 0.051, 0.071])
+KLEUR_VOEDSEL = np.array([0.20, 0.65, 0.30])
+KLEUR_ERTS = np.array([0.95, 0.62, 0.15])
+EMMER_PALET = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
+               "#D55E00", "#CC79A7", "#999999", "#111111"]
+GEN_NAMEN = ("agressie", "cooperatie", "hebzucht", "nieuwsgierigheid",
+             "retentie", "vergeving", "sociabiliteit", "risico_aversie", "stofwisseling")
+
+
+class MatplotlibViewer:
+    def __init__(self, wereld, registratie, stappen_per_frame: int = 4):
+        self.w, self.reg = wereld, registratie
+        self.spf = stappen_per_frame
+        self.H, self.W = wereld.hoogte, wereld.breedte
+
+        self.fig = plt.figure(figsize=(13.5, 7), facecolor="#101216")
+        gs = self.fig.add_gridspec(3, 2, width_ratios=(1.12, 1.0), hspace=0.42)
+        self.ax_kaart = self.fig.add_subplot(gs[:, 0])
+        self.ax_pop = self.fig.add_subplot(gs[0, 1])
+        self.ax_gen = self.fig.add_subplot(gs[1, 1])
+        self.ax_inst = self.fig.add_subplot(gs[2, 1])
+
+        # kaart
+        self.img = np.tile(BG, (self.H, self.W, 1))
+        self.im = self.ax_kaart.imshow(self.img, origin="lower",
+                                       extent=(-0.5, self.W - 0.5, -0.5, self.H - 0.5),
+                                       interpolation="nearest")
+        self.sc_agenten = self.ax_kaart.scatter([], [], s=20, c=[], zorder=3)
+        self.sc_vogelvrij = self.ax_kaart.scatter([], [], s=46, marker="X",
+                                                  c="crimson", edgecolors="black",
+                                                  linewidths=0.5, zorder=4)
+        self.ax_kaart.set_xticks([]); self.ax_kaart.set_yticks([])
+        self.ax_kaart.set_title("Omgeving", color="w")
+        for spine in self.ax_kaart.spines.values():
+            spine.set_color("#333")
+
+        # demografie: populatie (links) + EHI (rechts-as)
+        self.ln_pop, = self.ax_pop.plot([], [], lw=1.6, color="#58a6ff", label="populatie")
+        self.ax_ehi = self.ax_pop.twinx()
+        self.ln_ehi, = self.ax_ehi.plot([], [], lw=1.2, ls="--", color="#3fb950", label="EHI")
+        self.ax_pop.set_title("Demografie", color="w", fontsize=9)
+        self.ax_pop.legend(loc="upper left", fontsize=6, labelcolor="w")
+
+        # genfrequenties
+        self.gen_lijnen = {}
+        for i, naam in enumerate(GEN_NAMEN):
+            dik = naam in ("agressie", "cooperatie", "hebzucht")
+            ln, = self.ax_gen.plot([], [], lw=1.8 if dik else 0.8,
+                                   alpha=1.0 if dik else 0.30,
+                                   color=EMMER_PALET[i], label=naam if dik else None)
+            self.gen_lijnen[naam] = ln
+        self.ax_gen.set_ylim(0, 1)
+        self.ax_gen.set_title("Genfrequenties μ (dik: kerngenen)", color="w", fontsize=9)
+        self.ax_gen.legend(loc="upper left", fontsize=6, ncol=3, labelcolor="w")
+
+        # instituten: parasitaire druk, coop-EMA, conflictmult
+        self.ln_par, = self.ax_inst.plot([], [], lw=1.6, color="#f85149", label="P parasitair")
+        self.ln_coop, = self.ax_inst.plot([], [], lw=1.6, color="#3fb950", label="κ coop-EMA")
+        self.ax_mult = self.ax_inst.twinx()
+        self.ln_mult, = self.ax_mult.plot([], [], lw=1.0, ls=":", color="#8b949e",
+                                          label="conflictmult")
+        self.ax_inst.set_ylim(0, 1)
+        self.ax_inst.set_title("Institutionele druk", color="w", fontsize=9)
+        self.ax_inst.legend(loc="upper left", fontsize=6, labelcolor="w")
+
+        for ax in (self.ax_pop, self.ax_gen, self.ax_inst):
+            ax.tick_params(colors="#8b949e", labelsize=7)
+            ax.set_facecolor("#161b22")
+        self.status = self.fig.text(0.005, 0.005, "", fontsize=7, family="monospace",
+                                    color="#c9d1d9")
+
+        self.anim = FuncAnimation(self.fig, self._frame, interval=60,
+                                  cache_frame_data=False, blit=False)
+
+    # ── tekenhulpjes ─────────────────────────────────────────────────────
+    def _schilder_kaart(self) -> None:
+        snap = self.reg.laatste_ruimtelijk()
+        self.img[:, :] = BG
+        if snap is not None:
+            for x, y, res, q in snap.bronnen:
+                kleur = KLEUR_VOEDSEL if res == 0 else KLEUR_ERTS
+                self.img[y, x] = kleur * (0.18 + 0.82 * min(1.0, q / 12.0))
+            self.im.set_data(self.img)
+            if snap.agenten:
+                offs = np.array([[x, y] for _, x, y, *_ in snap.agenten])
+                kols = [EMMER_PALET[b[0] * 3 + b[1]] for *_, b, _, _ in
+                        [(a[3], None, None, None) for a in snap.agenten]]
+                maten = np.array([14.0 + 30.0 * ef for *_, ef, _ in snap.agenten])
+                self.sc_agenten.set_offsets(offs)
+                self.sc_agenten.set_facecolors(kols)
+                self.sc_agenten.set_sizes(maten)
+                vrij = [(x, y) for _, x, y, _, _, vv in snap.agenten if vv]
+                if vrij:
+                    self.sc_vogelvrij.set_offsets(np.array(vrij))
+                else:
+                    self.sc_vogelvrij.set_offsets(np.empty((0, 2)))
+        self.fig.canvas.draw_idle()
+
+    def _update_reeksen(self) -> None:
+        d = self.reg.tik_arrays()
+        if not d:
+            return
+        stride = max(1, len(d["tik"]) // 1600)
+        t = d["tik"][::stride]
+        for ln, kolom in ((self.ln_pop, "populatie"), (self.ln_ehi, "ehi")):
+            y = d[kolom][::stride]
+            ln.set_data(t, y)
+        self.ax_pop.set_xlim(0, max(1.0, d["tik"][-1]))
+        self.ax_pop.set_ylim(0, max(10.0, d["populatie"].max() * 1.15))
+        self.ax_ehi.set_ylim(0, 1)
+        for naam, ln in self.gen_lijnen.items():
+            i = GEN_NAMEN.index(naam)
+            ln.set_data(t, d["gen_gem"][::stride, i])
+        self.ax_gen.set_xlim(0, max(1.0, d["tik"][-1]))
+        self.ln_par.set_data(t, d["parasitair"][::stride])
+        coop = d["coop_ema"][::stride].copy()
+        coop = np.where(np.isnan(coop), np.nanmedian(coop[~np.isnan(coop)])
+                        if np.any(~np.isnan(coop)) else 0.5, coop)
+        self.ln_coop.set_data(t, coop)
+        self.ln_mult.set_data(t, d["conflictmult"][::stride])
+        self.ax_inst.set_xlim(0, max(1.0, d["tik"][-1]))
+        self.ax_mult.set_ylim(0.8, max(1.6, d["conflictmult"].max() * 1.1))
+
+    def _update_status(self) -> None:
+        laatste = self.reg.tik_arrays()
+        if not laatste:
+            self.status.set_text("wachten op telemetrie…")
+            return
+        i = -1
+        gebeurtenissen = self.reg.recente_gebeurtenissen(4)
+        regels = [f"t={int(laatste['tik'][i])} gen={int(laatste['generatie'][i])} "
+                  f"N={int(laatste['populatie'][i])} EHI={laatste['ehi'][i]:.2f} "
+                  f"Gini={laatste['gini_erts'][i]:.2f} "
+                  f"H'={laatste['shannon'][i]:.2f}"
+                  + ("  *** EXTINCT ***" if laatste["populatie"][i] == 0 else "")]
+        naam = {1: "ESCROW", 2: "CREDIT", 3: "WANPREST", 4: "ROOF-W",
+                5: "ROOF-X", 6: "DOOD", 7: "VOGELVRIJ"}
+        regels += [f"{g.tik:5d} {naam[g.type.value]:<9} {'#'.join(map(str, g.actor_ids))} "
+                   f"({g.omvang:.0f})" for g in gebeurtenissen]
+        self.status.set_text("\n".join(regels))
+
+    def _frame(self, _):
+        for _ in range(self.spf):
+            self.w.stap()
+        self._schilder_kaart()
+        self._update_reeksen()
+        self._update_status()
+        return []
+
+    def run(self) -> None:
+        plt.show()
+```
+
+*(Correctie bij het samenstellen: de list-comprehension voor `kols` hierboven vereenvoudig je tot `kols = [EMMER_PALET[a[3][0]*3 + a[3][1]] for a in snap.agenten]` — de tuple-layout van de snapshot is `(id, x, y, bucket, energief, vogelvrij)`.)*
+
+---
+
+## Deel 6 — `dashboard_dash.py` — interactief browsedashboard
+
+```python
+# ── bestand: evolib/dashboard_dash.py ─────────────────────────────────────
+"""Frontend B: Plotly/Dash. Simulatie in een thread; callbacks kopieren
+onder de registratie-lock en bouwen figuren erbuiten."""
+from __future__ import annotations
+
+import threading
+import time
+
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from dash import Dash, dcc, html, dash_table, Input, Output, State
+
+from telemetry import GebeurtenisType, lttb
+
+DONKER = {"backgroundcolor": "#101216", "papercolor": "#101216",
+          "fontcolor": "#c9d1d9", "grid": "#21262d"}
+EMMER_PALET = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
+               "#D55E00", "#CC79A7", "#999999", "#111111"]
+TYPE_NAAM = {e.value: e.name for e in GebeurtenisType}
+
+
+def _layout(fig) -> "go.Figure":
+    fig.update_layout(template="plotly_dark",
+                      paper_bgcolor=DONKER["papercolor"],
+                      plot_bgcolor=DONKER["backgroundcolor"],
+                      margin=dict(l=36, r=16, t=34, b=28),
+                      uirevision="vast")     # behoud zoom/pan tussen polls
+    return fig
+
+
+class SimulatieRunner(threading.Thread):
+    def __init__(self, wereld, stappen_per_slice: int = 25):
+        super().__init__(daemon=True)
+        self.wereld = wereld
+        self.slice_ = stappen_per_slice
+        self.stop_event = threading.Event()
+
+    def run(self) -> None:
+        while not self.stop_event.is_set():
+            for _ in range(self.slice_):
+                self.wereld.stap()
+            time.sleep(0.002)              # geef de GIL aan het dashboard
+
+
+# ── figuurbouwers ─────────────────────────────────────────────────────────
+def fig_kaart(reg, tik_keuze: int | None = None, breedte: int = 36,
+              hoogte: int = 36) -> go.Figure:
+    snap = reg.ruimtelijk_in_de_buurt(tik_keuze) if tik_keuze is not None \
+        else reg.laatste_ruimtelijk()
+    fig = go.Figure()
+    if snap is None:
+        fig.add_annotation(text="geen momentopname beschikbaar", showarrow=False)
+        return _layout(fig)
+    vx = [b[0] for b in snap.bronnen if b[2] == 0]; vy = [b[1] for b in snap.bronnen if b[2] == 0]
+    vq = [b[3] for b in snap.bronnen if b[2] == 0]
+    ox = [b[0] for b in snap.bronnen if b[2] == 1]; oy = [b[1] for b in snap.bronnen if b[2] == 1]
+    oq = [b[3] for b in snap.bronnen if b[2] == 1]
+    fig.add_trace(go.Scatter(x=vx, y=vy, mode="markers", name="voedsel",
+                             marker=dict(symbol="square", size=11, color="#2ea043",
+                                         opacity=0.75, line=dict(width=0)),
+                             text=[f"q={q:.1f}" for q in vq], hoverinfo="x+y+text"))
+    fig.add_trace(go.Scatter(x=ox, y=oy, mode="markers", name="erts",
+                             marker=dict(symbol="diamond", size=11, color="#d29922",
+                                         opacity=0.8, line=dict(width=0)),
+                             text=[f"q={q:.1f}" for q in oq], hoverinfo="x+y+text"))
+    if snap.agenten:
+        ax = [a[1] for a in snap.agenten]; ay = [a[2] for a in snap.agenten]
+        ak = [EMMER_PALET[a[3][0] * 3 + a[3][1]] for a in snap.agenten]
+        asz = [6 + 14 * a[4] for a in snap.agenten]
+        ahov = [f"#{a[0]} bucket={a[3]} E={a[4]:.0%}" for a in snap.agenten]
+        fig.add_trace(go.Scatter(x=ax, y=ay, mode="markers", name="agenten",
+                                 marker=dict(size=asz, color=ak, line=dict(width=1, color="#000")),
+                                 text=ahov, hoverinfo="text"))
+        vrij = [a for a in snap.agenten if a[5]]
+        if vrij:
+            fig.add_trace(go.Scatter(x=[a[1] for a in vrij], y=[a[2] for a in vrij],
+                                     mode="markers", name="vogelvrij",
+                                     marker=dict(symbol="x", size=15, color="crimson",
+                                                 line=dict(width=2))))
+    d = reg.tik_arrays()
+    extinct = bool(len(d) and d["populatie"][-1] == 0)
+    fig.update_layout(
+        title=f"Omgeving — tik {snap.tik}" + (" — EXTINCT" if extinct else ""),
+        xaxis=dict(range=[-0.5, breedte - 0.5], visible=False),
+        yaxis=dict(range=[-0.5, hoogte - 0.5], visible=False,
+                   scaleanchor="x", scaleratio=1))
+    return _layout(fig)
+
+
+def fig_reeksen(reg) -> go.Figure:
+    d = reg.tik_arrays()
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    if not d:
+        return _layout(fig)
+    t = d["tik"]
+    for kolom, kleur, naam in (("populatie", "#58a6ff", "populatie"),):
+        tx, ty = lttb(t, d[kolom])
+        fig.add_trace(go.Scatter(x=tx, y=ty, name=naam, line=dict(color=kleur, width=2)))
+    for kolom, kleur in (("ehi", "#3fb950"), ("gini_erts", "#f85149"),
+                         ("shannon", "#d2a8ff"), ("parasitair", "#ffa657"),
+                         ("coop_ema", "#39d353")):
+        y = d[kolom]
+        mask = ~np.isnan(y)
+        if mask.any():
+            tx, ty = lttb(t[mask], y[mask])
+            fig.add_trace(go.Scatter(x=tx, y=ty, name=kolom, line=dict(color=kleur, width=1.4)),
+                          secondary_y=True)
+    fig.update_layout(title="Tijdsreeksen", hovermode="x unified")
+    fig.update_xaxes(rangeslider=dict(visible=True))
+    fig.update_yaxes(title_text="populatie", secondary_y=False)
+    fig.update_yaxes(title_text="fracties [0–1]", range=[-0.02, 1.02], secondary_y=True)
+    return _layout(fig)
+
+
+def fig_evolutie(reg) -> go.Figure:
+    gens = reg.generatie_lijst()
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+                        subplot_titles=("genfrequenties per generatie",
+                                        "fenotype-emmers (gestapeld)",
+                                        "fitness & clusters"))
+    if not gens:
+        for i in range(3):
+            fig.add_trace(go.Scatter(x=[], y=[]), row=i + 1, col=1)
+        return _layout(fig)
+    g = np.array([x.generatie for x in gens])
+    namen = ("agressie", "cooperatie", "hebzucht", "nieuwsgierigheid",
+             "retentie", "vergeving", "sociabiliteit", "risico_aversie", "stofwisseling")
+    mu = np.array([x.gen_gem for x in gens])          # (G, 9)
+    sd = np.array([x.gen_std for x in gens])
+    for j, nm in enumerate(namen):
+        fig.add_trace(go.Scatter(x=g, y=mu[:, j], name=nm, legendgroup=nm,
+                                 line=dict(color=EMMER_PALET[j]), showlegend=j < 3),
+                      row=1, col=1)
+        if nm in ("agressie", "cooperatie"):
+            fig.add_trace(go.Scatter(x=np.concatenate([g, g[::-1]]),
+                                     y=np.concatenate([mu[:, j] + sd[:, j],
+                                                       (mu[:, j] - sd[:, j])[::-1]]),
+                                     fill="toself", opacity=0.15, line_width=0,
+                                     fillcolor=EMMER_PALET[j], showlegend=False,
+                                     legendgroup=nm), row=1, col=1)
+    buckets = np.array([x.bucket_tellingen for x in gens])  # (G, 9)
+    restant = buckets.sum(axis=1).astype(float)
+    for j in range(9):
+        aandeel = np.divide(buckets[:, j], restant,
+                            out=np.zeros_like(restant), where=restant > 0)
+        fig.add_trace(go.Scatter(x=g, y=aandeel, stackgroup="emmers",
+                                 name=f"emmer{j}", legendgroup=f"e{j}",
+                                 line=dict(width=0.5, color=EMMER_PALET[j]),
+                                 showlegend=j in (0, 2, 6, 8)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=g, y=[x.beste_fitness for x in gens],
+                             name="beste fitness", line=dict(color="#3fb950")), row=3, col=1)
+    fig.add_trace(go.Scatter(x=g, y=[x.gemiddelde_fitness for x in gens],
+                             name="gem. fitness", line=dict(color="#58a6ff", dash="dot")),
+                  row=3, col=1)
+    fig.add_trace(go.Scatter(x=g, y=[x.n_clusters for x in gens], name="clusters",
+                             yaxis="y6", line=dict(color="#f85149", dash="dash")),
+                  row=3, col=1)
+    fig.layout.yaxis6 = dict(overlaying="y5", side="right", range=[0, None],
+                             title="clusters")
+    return _layout(fig)
+
+
+def fig_gebeurtenissen(reg, venster: int = 25) -> tuple[go.Figure, list[dict]]:
+    t, code = reg.gebeurtenis_matrix()
+    fig = go.Figure()
+    if t.size:
+        bins = np.arange(0, t.max() + venster, venster)
+        for waarde, kleur in ((1, "#3fb950"), (2, "#56d364"), (4, "#f85149"),
+                              (5, "#8b949e"), (3, "#ffa198"), (6, "#6e7681"),
+                              (7, "#ff7b72")):
+            sel = code == waarde
+            if sel.any():
+                hist, _ = np.histogram(t[sel], bins=bins)
+                fig.add_bar(x=bins[:-1], y=hist, name=TYPE_NAAM[waarde],
+                            marker_color=kleur, width=venster * 0.9)
+    fig.update_layout(barmode="stack", title=f"gebeurtenissen per {venster} tikken")
+    _layout(fig)
+    rijen = [{"tik": g.tik, "type": g.type.name,
+              "actoren": ", ".join(f"#{i}" for i in g.actor_ids), "omvang": round(g.omvang, 1)}
+             for g in reg.recente_gebeurtenissen(40)]
+    rijen.reverse()
+    return fig, rijen
+
+
+# ── app-fabriek ───────────────────────────────────────────────────────────
+def maak_app(reg, wereld=None, replay: bool = False, breedte: int = 36,
+             hoogte: int = 36) -> Dash:
+    app = Dash(__name__)
+    laatste_tik = 0
+    d = reg.tik_arrays()
+    if replay and len(d):
+        laatste_tik = int(d["tik"][-1])
+
+    app.layout = html.Div(style={"backgroundColor": DONKER["backgroundcolor"],
+                                 "fontFamily": "monospace", "padding": "12px"}, children=[
+        html.H2("Evolving Agents — dashboard",
+                style={"color": DONKER["fontcolor"], "marginTop": "0"}),
+        html.Div([
+            dcc.Checklist(options=[{"label": " pauze", "value": "p"}],
+                          id="pauze", value=(["p"] if replay else []),
+                          style={"display": "inline-block", "marginRight": "24px"}),
+            html.Span(id="status", style={"color": DONKER["fontcolor"]}),
+        ]),
+        dcc.Slider(0, max(1, laatste_tik), 1, value=laatste_tik, id="scrubber",
+                   marks=None, tooltip={"always_visible": False})
+        if replay else html.Div(),
+        dcc.Tabs(id="tabs", value="kaart", parent_className="custom-tabs",
+                 className="custom-tabs-container", children=[
+            dcc.Tab(label="Kaart", value="kaart"),
+            dcc.Tab(label="Tijdsreeksen", value="reeksen"),
+            dcc.Tab(label="Evolutie", value="evolutie"),
+            dcc.Tab(label="Gebeurtenissen", value="gebeurtenissen"),
+        ], colors={"border": "#21262d", "primary": "#58a6ff",
+                   "background": "#161b22"}),
+        html.Div(id="tab-inhoud"),
+        dcc.Interval(id="klok", interval=450,
+                     disabled=bool(replay)),   # replay: alleen via scrubber
+        dcc.Store(id="niks"),
+    ])
+
+    @app.callback(Output("tab-inhoud", "children"),
+                  Output("status", "children"),
+                  Input("klok", "n_intervals"),
+                  Input("scrubber", "value") if replay else Input("tabs", "value"),
+                  State("tabs", "value"),
+                  State("pauze", "value"),
+                  prevent_initial_call=False)
+    def vernieuw(_n, _x, tab, pauze):
+        gestopt = "p" in (pauze or [])
+        tik_keuze = _x if replay and isinstance(_x, (int, float)) else None
+        if tab == "kaart":
+            inhoud = dcc.Graph(figure=fig_kaart(reg, tik_keuze, breedte, hoogte),
+                               style={"height": "78vh"},
+                               config={"displayModeBar": False})
+        elif tab == "reeksen":
+            inhoud = dcc.Graph(figure=fig_reeksen(reg), style={"height": "80vh"})
+        elif tab == "evolutie":
+            inhoud = dcc.Graph(figure=fig_evolutie(reg), style={"height": "86vh"})
+        else:
+            gf, rijen = fig_gebeurtenissen(reg)
+            inhoud = html.Div([
+                dcc.Graph(figure=gf, style={"height": "38vh"}),
+                dash_table.DataTable(
+                    columns=[{"name": c, "id": c} for c in
+                             ("tik", "type", "actoren", "omvang")],
+                    data=rijen, page_size=18, style_table={"height": "34vh",
+                                                           "overflowY": "auto"},
+                    style_cell={"backgroundColor": "#161b22", "color": "#c9d1d9",
+                                "border": "1px solid #21262d", "fontSize": 12},
+                    style_header={"backgroundColor": "#21262d"}),
+            ])
+        d2 = reg.tik_arrays()
+        status = "—" if not len(d2) else (
+            f"t={int(d2['tik'][-1])}  N={int(d2['populatie'][-1])}  "
+            f"EHI={d2['ehi'][-1]:.2f}  Gini={d2['gini_erts'][-1]:.2f}  "
+            f"P={d2['parasitair'][-1]:.2f}  κ={d2['coop_ema'][-1]:.2f}"
+            + ("  *** EXTINCT ***" if d2["populatie"][-1] == 0 else "")
+            + ("  [gepauzeerd]" if gestopt else ""))
+        return inhoud, status
+
+    return app
+```
+
+---
+
+## Deel 7 — `run_dashboard.py` — bekabeling en moduskeuze
+
+```python
+# ── bestand: evolib/run_dashboard.py ──────────────────────────────────────
+"""Gebruik:
+  python run_dashboard.py --modus live  --seed 42 --generaties 30 [--log runs/r42.jsonl]
+  python run_dashboard.py --modus dash  --seed 42 [--log runs/r42.jsonl] [--poort 8050]
+  python run_dashboard.py --modus replay --bestand runs/r42.jsonl
+"""
+import argparse
+
+import numpy as np
+
+from genome import Genome
+from telemetry import TelemetrieRegistratie
+from world import Wereld
+from ecosystem import EcoInstellingen
+
+
+def bouw_wereld(seed: int, log_pad: str | None) -> tuple[Wereld, TelemetrieRegistratie]:
+    rng = np.random.default_rng(seed)
+    wereld = Wereld(rng=rng)
+    reg = TelemetrieRegistratie(sink_pad=log_pad)
+    reg.koppel_header(seed, {
+        "breedte": wereld.breedte, "hoogte": wereld.hoogte,
+        "eco": vars(wereld.gov.inst), "tick_per_gen": wereld.tick_per_gen})
+    wereld.observers.append(reg)
+    for _ in range(110):
+        wereld.spawn(Genome.willekeurig(rng))
+    return wereld, reg
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--modus", choices=("live", "dash", "replay"), default="live")
+    ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--log", default=None)
+    ap.add_argument("--bestand", default=None)
+    ap.add_argument("--poort", type=int, default=8050)
+    args = ap.parse_args()
+
+    if args.modus == "replay":
+        assert args.bestand, "--bestand vereist voor replay"
+        reg = TelemetrieRegistratie.laad_uit_bestand(args.bestand)
+        from dashboard_dash import maak_app
+        app = maak_app(reg, replay=True)
+        app.run(port=args.poort, debug=False)
+        return
+
+    wereld, reg = bouw_wereld(args.seed, args.log)
+    if args.modus == "live":
+        from viz_matplotlib import MatplotlibViewer
+        try:
+            MatplotlibViewer(wereld, reg).run()
+        finally:
+            reg.sluit()
+    else:
+        from dashboard_dash import SimulatieRunner, maak_app
+        runner = SimulatieRunner(wereld)
+        runner.start()
+        app = maak_app(reg, wereld=wereld)
+        try:
+            app.run(port=args.poort, debug=False)
+        finally:
+            runner.stop_event.set()
+            reg.sluit()
+
+
+if __name__ == "__main__":
+    main()
+```
+
+*(Enige importhygiëne, analoog aan de basisarchitectuur: `dashboard_dash.py` importeert `maak_app` en `SimulatieRunner` pas in `run_dashboard.py`, zodat `viz_matplotlib` zonder Dash-installatie werkt. Dependencies: `numpy matplotlib dash plotly`.)*
+
+---
+
+## Deel 8 — Paneelspecificatie: wat, precies, en hoe vaak
+
+| # | Paneel | Inhoud | Exacte definitie | Cadans |
+|---|--------|--------|------------------|---------|
+| 1 | Ruimtelijke kaart | bronnen (kleur/type, helderheid ∝ q/cap), agenten (kleur = fenotype-emmer, grootte ∝ energie-fractie, rode ✕ = vogelvrij) | emmer-index = ⌊3·agressie⌋·3 + ⌊3·coöperatie⌋ | snapshot elke 5 tikken |
+| 2 | Demografie | N(t) links-as; EHI(t) rechts-as | EHI = clip(R_tot/K_tot, 0, 1) | tik |
+| 3 | Genfrequenties | μ per gen; σ-band voor agressie & coöperatie | steekproef over levende populatie | tik |
+| 4 | Fenotype-mix | gestapeld aandeel van 9 emmers per generatie | pₖ = nₖ/N | generatie |
+| 5 | Institutionele druk | P parasitair, κ coop-EMA, conflictmultiplier | P = aandeel (agr>.6 ∧ coop<.3); κ←0.92κ+0.08w; m = 1+2.5·max(0,p̄−0.6)/0.4 | tik |
+| 6 | Ongelijkheid & diversiteit | Gini(erts), H′(emmers), #clusters (δ=0.35) | zie Deel 1, stap 2 | tik / generatie |
+| 7 | Evolutie-uitkomst | beste & gem. ruwe fitness, HoF-top3, fitnesscomponenten | `motor._ruwe_fitness` met gewichten w | generatie |
+| 8 | Gebeurtenisstroom | gestapelde staafdiagrammen per type per 25-tikvenster + tabel laatste 40 | bins = arange(0, t_max+25, 25) | 450 ms poll |
+| 9 | Faseportret *(extensie, 15 regels)* | traject (P_parasitair, EHI) door de tijd | onthult Lotka-Volterra-limitcyclussen uit Deel 4 van de basisarchitectuur | tik |
+
+---
+
+## Deel 9 — Randgevallen, backpressure en prestatiebudget
+
+**Backpressure-beleid (wat mag vallen?):**
+
+| Kanaal | Beleid | Reden |
+|---|---|---|
+| Ruimtelijke momentopnames (RAM) | ringbuffer 1500 → oudste valt | zwaarste post; kaart heeft maar de tail nodig |
+| Tik-steekproeven (RAM) | ringbuffer 20.000 | ~40 floats/stuk ⇒ ~6 MB bovengrens |
+| Gebeurtenissen (RAM) | ringbuffer 60.000 | tail-weergave |
+| **JSONL-sink** | **valt nóóít** | volledige fiducialiteit voor replay/analyse |
+
+**Determinisme:** de registratie gebruikt geen enkele RNG, mutueert niets in `Wereld`, en de header bevat `seed` + `config_hash` — elk JSONL-bestand reconstrueert exact de run die het beschrijft. Visualisatie-jitter (bijv. in matplotlib) zou, indien ooit nodig, een *eigen* `Generator(seed)` krijgen, nooit de globale toestand.
+
+**Threadsafety-regel voor Dash:** elke callback doet `reg.<lees-API>()` — die kopieert intern onder de `RLock` — en bouwt Plotly-figuren *buiten* de kritieke sectie. Nooit een referentie naar een deque-element buiten de lock gebruiken (immutable dataclasses maken dit veilig).
+
+**Degenerate toestanden:** populatie 0 → kaart krijgt "EXTINCT"-titel, statusregel krijgt een banner, alle delingen in `gini`/`shannon`/`np.divide` hebben expliciete nul-guards; κ is `NaN` tot de eerste handels-/roofgebeurtenis en wordt in beide frontends door de mediaan vervangen vóór plotting.
+
+**Prestatiebudget:** `na_tik` kost O(N + 9) ≈ microseconden bij N=110; ruimtelijke opname O(|grid| + N) elke 5 tikken; LTTB begrenst browsersporen op 900 punten; `uirevision="vast"` voorkomt dat zoom/pan elke poll-reset. De matplotlib-frontend haalt comfortabel 15–20 fps met `spf=4`; wil je sneller simuleren dan kijken, zet je `--modus dash` uit en draai je headless naar JSONL, en bekijkt de replay daarna.
+
+---
+
+## Deel 10 — Extensieroute (in volgorde vanwetenschappelijke opbrengst)
+
+1. **Faseportret-paneel** `(P_parasitair, EHI)` — direct bewijs/ weerlegging van de demping uit verdedigingslinies L2/L3.
+2. **Fylogenie-weergave** — per generatie een hiërarchische clustering (UPGMA op genoomafstand) van het archief, gerenderd als icicle/sunburst: zichtbaar waar parasitaire clades ontstaan en uitsterven.
+3. **Multi-run-overlay** — meerdere JSONL-bestanden in één Dash-sessie laden; identical-schema maakt A/B-vergelijking van gouverneursparameters (`vruchtbaar_drempel`, `conflict_cap`) triviaal.
+4. **Ops-adapters** — een tweede observatorklasse die hetzelfde protocol naar Prometheus-counters vertaalt, geeft gratis Grafana-dashboards voor langlopende batch-experimenten; de architectuur hoeft daarvoor niets te veranderen — dat is precies de return op de investering in het smalle observer-protocol en de bevroren datacontracten.

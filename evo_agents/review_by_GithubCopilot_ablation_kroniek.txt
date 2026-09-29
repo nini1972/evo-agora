@@ -1,0 +1,81 @@
+# Review: run_ablation_kroniek.py (Gemini) tegen OxAlpha's P1-experiment (Finding C)
+
+## Context
+OxAlpha's `review_oxalph_900K_ticks.txt` (Finding C, §7 P1) eiste een Kroniek-
+ablatie: "≥10 seeds, short runs, everything else identical. Prediction if
+Finding C is right: P rebounds to 0.3+ within ~10 generations." Gemini heeft
+dit geïmplementeerd in `run_ablation_kroniek.py`. Ik heb het script tegen de
+live `evolib/`-code geverifieerd, twee keer volledig uitgevoerd (10 seeds x
+2 armen x 25 generaties elk), en één bug gevonden en gefixt.
+
+## Verificatie van de implementatie
+- `Wereld(rng=..., met_kroniek=...)`, `TelemetrieRegistratie.tik_arrays()`,
+  `handels_per_100` en alle gebruikte velden/methodes bestaan exact zoals
+  aangeroepen in `world.py`/`telemetry.py`/`genome.py`. Geen API-mismatches.
+- Paired-seed design (zelfde seed voor AAN/UIT-arm → identieke startpopulatie
+  en resource-grid, enige verschil is `met_kroniek`) is correcte
+  experimentontwerp-praktijk en vermindert ruis tussen armen.
+- `python -m pytest test_economics.py -q` → 3 passed (bevestigt eerdere
+  review-actiepunt "re-run pytest" is nu gedaan en groen).
+- Determinisme bevestigd: twee volledige runs met dezelfde seeds gaven
+  bit-voor-bit identieke per-seed resultaten.
+
+## Bug gevonden: misleidende "significantie" op Cohen's d alleen
+De oorspronkelijke conclusie-logica classificeerde het effect uitsluitend op
+basis van Cohen's d (`d > 0.2` → "Significant effect"). Met n=10 per arm en
+duidelijk ongelijke varianties (UIT-arm bimodaal: sommige seeds P≈0.01-0.09,
+andere P≈0.72-0.77) is dat statistisch onhoudbaar. Op de daadwerkelijke
+resultaten:
+
+  P_gem AAN  = 0.317 ± 0.102
+  P_gem UIT  = 0.365 ± 0.241
+  Cohen's d  = +0.26  → oude code riep dit "significant effect"
+  Welch t    = +0.55, p = 0.592
+  Mann-Whitney U, p = 0.791
+
+Beide formele toetsen falen ruim op p<0.05. Ik heb `run_ablation_kroniek.py`
+aangepast: toegevoegd `scipy.stats.ttest_ind` (Welch, robuust tegen
+ongelijke variantie) + `mannwhitneyu` (verdelingsvrij, robuust tegen de
+bimodaliteit), en de conclusietekst vereist nu significantie op beide
+toetsen i.p.v. enkel een Cohen's-d-drempel. `scipy` toegevoegd aan
+`requirements.txt`.
+
+## Belangrijkste inhoudelijke bevinding: het experiment is (nog) niet conclusief
+Met de fix toont het experiment een eerlijk null-resultaat: geen aantoonbaar
+verschil in parasitaire druk tussen Kroniek AAN/UIT bij 25 generaties vanaf
+een koude start. Maar dat null-resultaat moet je NIET lezen als "Kroniek
+maakt niets uit" — want in beide armen ligt P_gem op 0.32-0.37, ver boven
+het 0.12-0.17-regime dat de 900k-tick referentierun (~3100 generaties)
+liet zien. D.w.z. zelfs de controle-arm (Kroniek AAN) bereikt binnen 25
+generaties het lage-P-"vredesregime" nog niet — de Kroniek-archetypen zijn
+dan wel grotendeels opgebouwd (alle 9 archetype-buckets gevuld binnen ~15-20
+generaties, geverifieerd met een losse 60-generatie trace), maar P zelf
+blijft ruisen/drift-gedreven stijgen in sommige seeds (bv. seed 42 AAN:
+P daalt naar ~0.10-0.16 in gen 5-29, stijgt dan weer naar 0.31-0.39 in gen
+30-59 — geen monotone convergentie).
+
+Conclusie: het huidige experimentontwerp (beide armen koud starten en 25
+generaties draaien) kan Finding C nog niet scheiden van "beide armen zijn
+simpelweg te kort om het referentieregime te bereiken." Voor een sterkere
+test raad ik aan:
+1. Meer generaties per arm (zodat de AAN-arm ook echt P≈0.12-0.17 bereikt
+   voordat je vergelijkt), en/of
+2. Ablatie vanaf een reeds gevestigde vredestoestand: laad/reconstrueer een
+   populatie + `kroniek_archetypen` die al in het lage-P-regime zit, splits
+   daarna in twee armen (Kroniek aan laten vs. uitzetten) en kijk of P
+   binnen ~10 generaties terugveert — dit is dichter bij wat OxAlpha's
+   oorspronkelijke voorstel ("short runs" na een gevestigde toestand)
+   bedoelde dan een dubbele koude start.
+
+Beide aanbevelingen staan nu ook als interpretatie-waarschuwing in de
+docstring en in de `[CONCLUSIE]`-tekst van het script zelf, zodat toekomstige
+runs niet per ongeluk een vals-positief of vals-negatief "bewijs" opleveren.
+
+## Samenvatting van wijzigingen
+- `run_ablation_kroniek.py`: docstring gecorrigeerd (25 i.p.v. 30 generaties,
+  matcht nu de daadwerkelijke `run_experiment()`-default), Welch t-test +
+  Mann-Whitney U toegevoegd naast Cohen's d, conclusielogica vereist nu
+  p<0.05 op beide toetsen, interpretatie-waarschuwing toegevoegd.
+- `requirements.txt`: `scipy>=1.10.0` toegevoegd (nieuwe harde dependency).
+- Geverifieerd: `pytest test_economics.py` groen (3/3), ablatie-experiment
+  twee keer end-to-end gedraaid met reproduceerbare resultaten.

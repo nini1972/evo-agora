@@ -1,0 +1,560 @@
+# EvoAgora-Core — Van ruileconomie naar prijseconomie: wiskundige onderbouwing + productiecode
+
+---
+
+## Deel 1 — Chain of Thought: de wiskunde van afnemende meeropbrengst
+
+**Stap 1 — Waarom concaviteit de échte motor van handel is.**
+De oude economie had lineair nut: `waarde(erts, n) = n·k`. Twee agenten met identieke genen maar *verschillende voorraden* hadden daardoor identieke waarderingen — geen ruilwinst, geen handel, tenzij toeval verschillende k-ratio's bijeen bracht. Dit is de fundamentele upgrade: met **concaaf nut** ontstaat ruilwinst tussen *identieke* agenten puur uit endowment-heterogeniteit. Dit is de Edgeworth-box-logica: wie veel erts en weinig voedsel heeft, heeft een hoge marginale waardering van voedsel; zijn spiegelbeeld het omgekeerde; het contract curve-snijpunt is de prijs waarop ze uitkomen. Concaviteit is dus geen cosmetische eis — het is wat de economie van binnenuit laat draaien.
+
+**Stap 2 — Functiekeuze: waarom logaritmisch.**
+Drie kandidaten: macht (`U = k·n^ρ`), exponentiële verzadiging (`U = k(1−e^{−n/s})`), logaritmisch (`U = k·ln(1+n/s)`). Ik kies log om drie redenen:
+
+1. **Gesloten marginale vorm**: `MU(n) = k/(s+n)` — strikt dalend, nooit nul, triviaal te ontleedbaar.
+2. **Exacte multi-unit waardering zonder linearisatie**: `U(n+q) − U(n) = k·ln((s+n+q)/(s+n))` — een zuivere log-ratio. Bij exponentiële verzadiging krijg je hetzelfde maar met lelijkere algebra; bij macht-nut geen gesloten vorm voor de delta.
+3. **De reservatieprijs wordt een zuiver product van twee ratio's** (zie stap 5), wat de monotonie-analyse transparant maakt.
+
+**Stap 3 — Honger: exponentiële opdrijving via de schaal, niet via de kromme.**
+De eis luidt: honger drijft voedselwaarde *exponentieel* op bij lage energie. Cruciaal ontwerpbesluit: ik vermenigvuldig de **schaal** `k`, niet de kromme zelf:
+
+```
+h = clip(1 − E/E_max, 0, 1)                    (honger)
+k_v(h) = V · e^{γ·h},   γ = γ₀ + γ₁·m          (m = gen 'stofwisseling')
+U_v(n) = k_v(h) · ln(1 + n/s_v),  s_v = E_max/V
+```
+
+Waarom multiplicatief op `k`: (a) concaviteit en de MU-vorm blijven exact behouden; (b) de reservatieprijs schaalt netjes mee; (c) γ is genomisch (invariant 3: geen drempel buiten het genoom) — γ ∈ [0.8, 2.4] betekent dat bij totale honger de voedselwaarde ×2.2 (traag metabolisme) tot ×11 (snel metabolisme) stijgt. De satiatieschaal `s_v` is **fysiologisch** afgeleid: het aantal voedsel-eenheden nodig om van leeg naar vol te gaan — geen vrije parameter.
+
+**Stap 4 — Hebzucht: lineaire shift, concaaf behouden.**
+`k_e = W·(0.7 + 0.6·g)` met g = hebzucht: exact de gevraagde lineaire verschuiving, terwijl `U_e(n) = k_e·ln(1+n/S_E)` de afnemende meeropbrengst per extra voorraad-eenheid garandeert (`MU_e = k_e/(S_E+n)` strikt dalend, voor élke g). `S_E` is een wereldconstante (10) — heterogeniteit in erts-waardering komt uitsluitend via `k_e` en voorraden.
+
+**Stap 5 — De reservatieprijs als interne wisselkoers.**
+
+```
+ρ ≡ MU_v(n_v) / MU_e(n_e) = (k_v/k_e) · (S_E + n_e)/(s_v + n_v)     [erts per voedsel]
+```
+
+Vier monotonie-eigenschappen die de hele marktdynamiek dragen: honger ↑ ⇒ ρ ↑; voedselvoorraad ↑ ⇒ ρ ↓; **ertsvoorraad ↑ ⇒ ρ ↑** (de Edgeworth-motor); hebzucht ↑ ⇒ ρ ↓. Twee identieke agenten met gespiegelde voorraden hebben ρ's die ver uiteen liggen → zone van overeenkomst → handel.
+
+**Stap 6 — De valkuil die de lot-optimizer noodzaakt: ρ is een lokale prijs.**
+Rekenvoorbeeld (calibratie uit de code): A (voedsel 6, erts 0, h=0.5): ρ_A ≈ 2.47. B (voedsel 0, erts 8, h=0.1): ρ_B ≈ 3.69. Zone [2.47, 3.69] lijkt ruim. Maar koop B **2** voedsel tegen 6 erts: exacte winst `12.9·ln(12.5/10.5) = 2.26`, exacte kost `6·ln(18/12) = 2.43` → **netto negatief**, ondanks P=3.0 < ρ_B=3.69! Verklaring: de marginaal erts-kost stijgt naarmate B's ertsvoorraad slumpt (`MU_e` loopt van 0.333 naar 0.5 over de aankoop), terwijl de marginale voedsel-winst daalt. **De reservatieprijs prikt alleen de eerste eenheid; multi-unit winstbaarheid krimpt het effectieve zone.** Consequentie: `evalueer_bod` moet oordelen op **exacte totalen per kandidaat-lot**, niet op prijsvergelijkingen — en deals zullen realistisch genoeg settelen op kleine lots (1–3). Dit valideert de grid-search lot-optimizer (concaviteit ⇒ netto-winst is concief in q ⇒ grid search vindt het optimum).
+
+**Stap 7 — Bid-ask spread: vijf componenten, twee afwikkelregimes.**
+Canonieke prijsconventie voor de hele economie: **P = erts per 1 voedsel**, altijd. Verkoper van voedsel: ask `P = ρ·(1+σ)`; koper: bid `P = ρ·(1−δ)`.
+
+| Component | Ask (σ) | Bid (δ) | Bron |
+|---|---|---|---|
+| Strategisch | `M_MAX·g` | `M_MAX·g` | hebzucht-gen |
+| Kredietrisico (alleen CREDIT) | `π_MAX·r_a·(1−T)` | idem | risico_aversie-gen × trust |
+| Systeemrisico (alleen CREDIT) | `π_SYS·roofdruk_EMA` | idem | wereld-macro |
+| Urgentie | — | `−U_MAX·h` | honger drukt koper naar reservatie |
+| Trust-versneller | — | `−C_T·T` | hoge T ⇒ bid dichter bij ρ |
+
+Twee inzichten die uit de calibratie rollen en die ik bewust laat staan omdat ze *institutioneel correct* zijn: (1) **ESCROW-premie = 0** — de notaris garandeert en de courtage (`n//20`) is feitelijk nul voor lots < 20; (2) bij CREDIT passen **beide** kanten de premie toe op hun kostpoot, dus de effectieve zone krimpt met ≈(1+π)². Bij T=0.6, r_a=0.5 is dat ×1.25 — krediethandel tussen wantrouwenden wordt wiskundig vrijwel onmogelijk, terwijl escrow gratis blijft. Dat is geen bug maar het gewenste macro-mechanisme: **vlucht naar de notaris bij wantrouwen en oorlog, krediet alleen tussen vertrouwden** — en de Kroniek bepaalt wie vertrouwden zijn.
+
+**Stap 8 — Concessiecurven: Rubinstein-geïnspireerd, stateless, bewijsbaar terminerend.**
+Elke agent volgt een deterministisch pad vanaf zijn eigen standpunt:
+
+```
+P_ask(t) = ρ·(1 + σ_min + (σ_vol − σ_min)·κ^t)          (daalt monotool)
+P_bid(t) = ρ·(1 − δ_min − (δ_vol − δ_min)·κ^t)          (stijgt monotool)
+κ = KAPPA_MIN + (KAPPA_MAX−KAPPA_MIN)·x,  x = gemiddelde van (geduld-factoren)
+```
+
+met κ^0 = 1 (openen op volledige marge) en κ^t → 0 (convergeer naar walk-away). Voor de koper is x = [(1−h) + (1−T) + g]/3: **honger en vertrouwen versnellen concessie** (eis 3: hoge T ⇒ sneller sluiten ✓), hebzucht vertraagt. Voor de verkoper: x = [h + (1−T) + g]/3 (voedseloverschot = concessiedruk). Terminatie: beide paden zijn monotoon naar de eigen walk-prijs; overlappen de zones, dan kruisen ze binnen MAX_RONDES of vuurt de **shortcut-regel** (accepteer elk binnenkomend bod dat beter is dan je eigen nú volgende concessie, mits winst > 0) — niemand laat geld liggen, niemand concedes oneindig. Plus een deadline-effect: de acceptatiedrempel θ krimpt 35% in de lastronde (geen-deal is ook een kost).
+
+**Stap 9 — Naadloze integratie met de vier bestaande upgrades.**
+- **Kroniek**: geen regel code nodig in de prijzen — zij voedt `vertrouwen()` via archetype-prioren, en T zit in élke premie en κ. Newborns prijzen het faillissementsrisico van verdachte fenotypes dus vanaf geboorte: institutioneel geheugen wordt letterlijk **in de spread geprijst**.
+- **Roofdruk**: policy leest `wereld.roofdruk_ema()` (defensief via `getattr` met default 0.0, zodat merge-volgorde niets breekt) — oorlog verbreedt kredietspreads en forceert escrow.
+- **Wraakterm**: geïntegreerd in de herschreven `u_aanval`.
+- **√d-fix**: zuiver evolutionair (`evolution.py`), geen interactie met prijzen.
+
+**Stap 10 — Determinisme en integer-realizatie.**
+Prijzen zijn **volledig deterministisch** gegeven (staat, view, ronde); de `rng`-parameters blijven alleen voor interfacecompatibiliteit. Een float-prijs wordt gerealiseerd als gehele hoeveelheden via `Bod.met_prijs`, en — cruciaal — de lot-optimizer evalueert de *gerealiseerde integer-termen* (`c = max(1, round(q·P))`), dus de quote is exact wat geoptimaliseerd is, geen afrondingsverrassing achteraf.
+
+Pas ná deze keten volgt de code.
+
+---
+
+## Deel 2 — `protocol.py` delta: Bod met prijsondersteuning + bijgewerkte FSM
+
+```python
+# ── bestand: evolib/protocol.py — ECONOMISCHE DELTA (EvoAgora-Core) ───────
+# Alleen Bod en onderhandel wijzigen; Partij, Wijze, Res, TegenpartijView,
+# Bericht*, BerichtSigneerder blijven onveranderd.
+
+MAX_RONDES = 3
+MAX_LOT = 8          # protocolmaximum voedsel-eenheden per bod
+P_MIN = 0.05         # prijsklem: erts per voedsel
+P_MAX = 40.0
+
+
+@dataclass(frozen=True)
+class Bod:
+    """Ruilvoorstel met expliciete prijsconventie.
+    Canoniek: P = erts per 1 voedsel, richting-onafhankelijk.
+    kant='ASK': bieder verkoopt voedsel (geeft=VOEDSEL, vraagt=ERTS).
+    kant='BID': bieder koopt voedsel   (geeft=ERTS, vraagt=VOEDSEL)."""
+
+    geeft: Partij
+    vraagt: Partij
+
+    @property
+    def kant(self) -> str:
+        return "ASK" if self.geeft.res is Res.VOEDSEL else "BID"
+
+    @property
+    def prijs(self) -> float:
+        """Gerealiseerde canonieke prijs (erts per voedsel) uit de integers."""
+        if self.kant == "ASK":
+            return self.vraagt.hoeveelheid / max(1, self.geeft.hoeveelheid)
+        return self.geeft.hoeveelheid / max(1, self.vraagt.hoeveelheid)
+
+    @classmethod
+    def met_prijs(cls, kant: str, prijs: float, lot_voedsel: int) -> "Bod":
+        """Realiseer canonieke prijs P in gehele hoeveelheden (deterministisch):
+        tegen = max(1, round(lot·P)). De lot-optimizer in policy evalueert
+        precies díze integer-termen, dus de quote is exact wat geoptimaliseerd is."""
+        p = float(min(P_MAX, max(P_MIN, prijs)))
+        lot = max(1, int(lot_voedsel))
+        tegen = max(1, int(round(lot * p)))
+        if kant == "ASK":
+            return cls(Partij(Res.VOEDSEL, lot), Partij(Res.ERTS, tegen))
+        return cls(Partij(Res.ERTS, tegen), Partij(Res.VOEDSEL, lot))
+
+
+def onderhandel(wereld, a, b, rng):
+    """Afwisselende-biedingen FSM met ronde-doorgifte voor concessiecurven."""
+    va = wereld.tegenpartij_view(a.id, b.id)
+    vb = wereld.tegenpartij_view(b.id, a.id)
+    aanbieder, antwoorder = a, b
+    bod, wijze = aanbieder.beleid.openingsbod(va, rng)
+    if bod is None:
+        return None
+    for ronde in range(MAX_RONDES):
+        wereld.registreer_bericht(aanbieder.id, antwoorder.id,
+                                  BerichtType.OPEN if ronde == 0 else BerichtType.TEGENBOD,
+                                  bod, wijze, ronde)
+        view = vb if antwoorder is b else va
+        beslissing, tegenbod, tegenwijze = antwoorder.beleid.evalueer_bod(
+            bod, wijze, view, ronde, rng)
+        if beslissing == "ACCEPTEER":
+            wereld.registreer_bericht(antwoorder.id, aanbieder.id,
+                                      BerichtType.ACCEPTEER, bod, wijze, ronde)
+            return wereld.wikkel_af(aanbieder, antwoorder, bod, wijze)
+        if beslissing == "WEIGER" or tegenbod is None:
+            wereld.registreer_bericht(antwoorder.id, aanbieder.id,
+                                      BerichtType.WEIGER, None, None, ronde)
+            return None
+        aanbieder, antwoorder = antwoorder, aanbieder
+        bod, wijze = tegenbod, (tegenwijze or wijze)
+    return None
+```
+
+---
+
+## Deel 3 — `policy.py`: de volledige herschreven economische kern
+
+```python
+# ── bestand: evolib/policy.py — EvoAgora-Core ─────────────────────────────
+"""Economische beslisser: concaaf nut, reservatieprijzen, bid-ask spreads
+met risicopremie, concessiecurven en exacte lot-optimalisatie.
+
+Contracten:
+- Alle prijsbeslissingen zijn deterministisch gegeven (staat, view, ronde);
+  `rng` bestaat uitsluitend voor interfacecompatibiliteit.
+- Elke drempel is genomisch geparametriseerd of een kalibratieconstante.
+- Integratie: Kroniek -> vertrouwen -> premie; roofdruk_ema -> premie/escrow;
+  wraakterm in u_aanval; geen interactie met de √d-fix in evolution.py."""
+from __future__ import annotations
+
+import math
+
+import numpy as np
+
+from protocol import (Actie, ActieType, Bod, MAX_LOT, MAX_RONDES, P_MAX, P_MIN,
+                      Partij, Res, TegenpartijView, Wijze)
+
+# ── kalibratieconstanten (wereldfysica, geen strategie) ───────────────────
+VOEDSELENERGIE = 11.0     # energie per voedsel-eenheid
+ERTS_WAARDE = 6.0         # basisschaal ertsnut
+S_ERTS = 10.0             # verzadigingsschaal erts (log-kromme)
+GAMMA_0, GAMMA_1 = 0.80, 1.60   # hongergevoeligheid: γ = γ0 + γ1·stofwisseling
+M_MAX = 0.35              # maximale strategische marge (hebzucht)
+PI_MAX = 0.60             # maximale kredietpremie bij T=0, risico_aversie=1
+PI_SYS = 0.50             # systeemrisico-opslag bij maximale roofdruk
+C_T = 0.15                # trust-versneller op de biedmarge
+U_MAX = 0.25              # urgentie-concessie (honger) op de biedmarge
+KAPPA_MIN, KAPPA_MAX = 0.30, 0.85   # concessieretentie-band
+DELTA_MIN, DELTA_MAX = 0.02, 0.60   # biedmarge-band
+SIGMA_CAP = 1.20          # maximale ask-opslag boven de reservatieprijs
+THETA_ACCEPT = 0.15       # basisacceptatiedrempel (nut-eenheden)
+THETA_DEADLINE = 0.35     # drempelkrimp in de lastronde
+THETA_OPEN_REL = 0.15     # minimale relatieve ruilwinst om te openen
+T_MIN_HANDEL = 0.12       # harde uitsluiting (ostracisme)
+T_ESCROW = 0.60           # onder dit vertrouwen: escrow verplicht
+ROOFDRUK_ESCROW = 0.03    # boven deze roofdruk-EMA: vlucht naar escrow
+
+
+class Beleid:
+    """Genomisch geparametriseerd economisch beslisser."""
+
+    def __init__(self, agent):
+        self.a = agent
+
+    # ══════════════ 1. UTILITEITSCURVEN (eis 1) ══════════════
+    def _honger(self) -> float:
+        return float(np.clip(1.0 - self.a.energie / self.a.max_energie, 0.0, 1.0))
+
+    def _k_voedsel(self) -> float:
+        """Exponentiële hongeropdrijving: k_v = V·e^{γ·h}, γ genomisch."""
+        gamma = GAMMA_0 + GAMMA_1 * self.a.genoom.waarde("stofwisseling")
+        return VOEDSELENERGIE * math.exp(gamma * self._honger())
+
+    def _k_erts(self) -> float:
+        """Lineaire hebzucht-shift op de schaal; kromme blijft log-concaaf."""
+        return ERTS_WAARDE * (0.7 + 0.6 * self.a.genoom.waarde("hebzucht"))
+
+    def _s_voedsel(self) -> float:
+        """Fysiologische satiatieschaal: voedsel-eenheden van leeg naar vol."""
+        return max(1.0, self.a.max_energie / VOEDSELENERGIE)
+
+    def _voedsel_reserve(self) -> int:
+        return 1 + int(2.0 * self.a.genoom.waarde("risico_aversie"))
+
+    def _erts_reserve(self) -> int:
+        return 1 + int(1.0 * self.a.genoom.waarde("risico_aversie"))
+
+    def waarde(self, res: Res, n: float) -> float:
+        """Totaal nut van voorraad n: U(n) = k·ln(1 + n/s).
+        Concaaf en verzadigend; MU = k/(s+n) > 0 voor alle n (eis 1).
+        Signatuur onveranderd -> wereld.beste_buurcel blijft werken."""
+        n = max(0.0, float(n))
+        if res is Res.VOEDSEL:
+            return self._k_voedsel() * math.log1p(n / self._s_voedsel())
+        return self._k_erts() * math.log1p(n / S_ERTS)
+
+    def _delta_nut(self, res: Res, voorraad: float, delta: float) -> float:
+        """Exacte nutswijziging van Δ eenheden — géén linearisatie (CoT stap 6).
+        delta > 0: ontvangen (conciève winst); delta < 0: afgeven (convexe kost)."""
+        k = self._k_voedsel() if res is Res.VOEDSEL else self._k_erts()
+        s = self._s_voedsel() if res is Res.VOEDSEL else S_ERTS
+        n = max(0.0, float(voorraad))
+        if delta >= 0.0:
+            return k * math.log((s + n + delta) / (s + n))
+        q = min(-delta, n)
+        if q <= 0.0:
+            return 0.0
+        return -k * math.log((s + n) / (s + n - q))
+
+    # ══════════════ 2. RESERVATIEPRIJS & SCHATTINGEN ══════════════
+    def reserveringsprijs(self) -> float:
+        """ρ = MU_voedsel/MU_erts bij huidige voorraden: de interne wisselkoers
+        (hoeveel erts één marginaal voedsel waard is). CoT stap 5."""
+        mu_v = self._k_voedsel() / (self._s_voedsel() + self.a.voedsel)
+        mu_e = self._k_erts() / (S_ERTS + self.a.erts)
+        return float(np.clip(mu_v / max(1e-9, mu_e), P_MIN, P_MAX))
+
+    def _geschatte_reservering(self, view: TegenpartijView) -> float:
+        """ρ-schatting van de tegenpartij uit publieke informatie alleen.
+        Genen onobserveerbaar -> populatieprior (γ̄ = γ0+γ1/2, k̄_erts = W);
+        voedselvoorraad onzichtbaar -> prior 2. Fouten worden door de
+        onderhandeling geabsorbeerd; de schatting kiest slechts richting/size."""
+        h_ander = float(np.clip(1.0 - view.energie_fractie, 0.0, 1.0))
+        k_v = VOEDSELENERGIE * math.exp((GAMMA_0 + 0.5 * GAMMA_1) * h_ander)
+        mu_v = k_v / (self._s_voedsel() + 2.0)
+        mu_e = ERTS_WAARDE / (S_ERTS + max(0.0, view.erts_geschat))
+        return float(np.clip(mu_v / max(1e-9, mu_e), P_MIN, P_MAX))
+
+    # ══════════════ 3. PREMIES, MARGES, WIJZE ══════════════
+    def _kredietpremie(self, wijze: Wijze, view: TegenpartijView) -> float:
+        """Opslag voor afwikkelrisico op de eigen kostpoot.
+        ESCROW: notaris garandeert; courtage (n//20) is nul bij lots < 20 -> premie 0.
+        CREDIT: default-risico (trust) + systeemrisico (roofdruk-EMA, macro-koppeling)."""
+        if wijze is Wijze.ESCROW:
+            return 0.0
+        r_a = self.a.genoom.waarde("risico_aversie")
+        roofdruk = getattr(self.a.wereld, "roofdruk_ema", lambda: 0.0)()
+        return min(1.5, PI_MAX * r_a * (1.0 - view.vertrouwen) + PI_SYS * roofdruk)
+
+    def _kies_wijze(self, view: TegenpartijView) -> Wijze:
+        """Vlucht naar veiligheid: wantrouwen of oorlogsdruk -> escrow;
+        krediet is voorbehouden aan vertrouwde relaties in vredes tijden."""
+        roofdruk = getattr(self.a.wereld, "roofdruk_ema", lambda: 0.0)()
+        if view.vertrouwen < T_ESCROW or roofdruk > ROOFDRUK_ESCROW:
+            return Wijze.ESCROW
+        return Wijze.CREDIT
+
+    # ══════════════ 4. CONCESSIECURVEN (eis 3) ══════════════
+    def _concessie_kappa(self, kant: str, view: TegenpartijView) -> float:
+        """Retentie van de openingsmarge: κ hoog = geduldig.
+        Trust versnelt sluiten (eis 3); hebzucht vertraagt; urgentie versnelt."""
+        g = self.a.genoom.waarde("hebzucht")
+        h = self._honger()
+        T = view.vertrouwen
+        if kant == "BID:  # koper: honger + vertrouwen = concessiedruk
+            x = ((1.0 - h) + (1.0 - T) + g) / 3.0
+        else:               # verkoper: voedseloverschot (lage h) + vertrouwen
+            x = (h + (1.0 - T) + g) / 3.0
+        return KAPPA_MIN + (KAPPA_MAX - KAPPA_MIN) * float(np.clip(x, 0.0, 1.0))
+
+    def _planningsprijs(self, kant: str, ronde: int, rho: float,
+                        premie: float, view: TegenpartijView) -> float:
+        """Stateless concessiepad: P(t) = walk + (target − walk)·κ^t (CoT stap 8).
+        ASK daalt monotoon naar ρ·(1+premie); BID stijgt naar ρ·(1−δ_min)."""
+        g = self.a.genoom.waarde("hebzucht")
+        daling = self._concessie_kappa(kant, view) ** max(0, ronde)
+        if kant == "ASK":
+            sigma_vol = min(SIGMA_CAP, M_MAX * g + premie)
+            p = rho * (1.0 + premie + (sigma_vol - premie) * daling)
+        else:
+            h = self._honger()
+            delta_min = DELTA_MIN + premie
+            delta_vol = min(DELTA_MAX, max(delta_min, M_MAX * g + DELTA_MIN
+                                           + premie - U_MAX * h - C_T * view.vertrouwen))
+            p = rho * (1.0 - delta_min - (delta_vol - delta_min) * daling)
+        return float(np.clip(p, P_MIN, P_MAX))
+
+    def _acceptatiedrempel(self, ronde: int) -> float:
+        """θ krimpt 35% in de lastronde: geen-deal is ook een kost (deadline-effect)."""
+        g = self.a.genoom.waarde("hebzucht")
+        theta = THETA_ACCEPT * (0.6 + 0.8 * g)
+        return theta * (1.0 - THETA_DEADLINE * (ronde / max(1, MAX_RONDES - 1)))
+
+    # ══════════════ 5. EXACTE LOT-OPTIMALISATIE (CoT stap 6) ══════════════
+    def _optimum_lot(self, kant: str, prijs: float) -> int:
+        """Winstmaximerend integer-lot bij gegeven prijs, geëvalueerd op de
+        GEREALISEERDE integer-termen (c = max(1, round(q·P))). Concaviteit
+        maakt de netto-winst concief in q; de grid search is daarmee exact."""
+        a = self.a
+        beste_q, beste_net = 0, 0.0
+        if kant == "BID":
+            budget = a.erts - self._erts_reserve()
+            for q in range(1, MAX_LOT + 1):
+                c = max(1, int(round(q * prijs)))
+                if c > budget:
+                    break
+                netto = (self._delta_nut(Res.VOEDSEL, a.voedsel, q)
+                         - self._delta_nut(Res.ERTS, a.erts, -c))
+                if netto > beste_net:
+                    beste_q, beste_net = q, netto
+            return beste_q
+        beschikbaar = a.voedsel - self._voedsel_reserve()
+        for q in range(1, min(MAX_LOT, beschikbaar) + 1):
+            c = max(1, int(round(q * prijs)))
+            netto = (self._delta_nut(Res.ERTS, a.erts, c)
+                     - self._delta_nut(Res.VOEDSEL, a.voedsel, -q))
+            if netto > beste_net:
+                beste_q, beste_net = q, netto
+        return beste_q
+
+    # ══════════════ 6. OPENINGSBOD (eis 2) ══════════════
+    def openingsbod(self, view: TegenpartijView, rng=None):
+        """Kies richting via geschatte zone van overeenkomst, open agressief
+        (ronde 0 van het eigen concessiepad), sizeer via exacte lot-optimalisatie.
+        Return: (Bod, Wijze) of (None, None)."""
+        a = self.a
+        if view.vogelvrij or view.vertrouwen < T_MIN_HANDEL:
+            return None, None
+        rho = self.reserveringsprijs()
+        rho_ander = self._geschatte_reservering(view)
+        wijze = self._kies_wijze(view)
+        premie = self._kredietpremie(wijze, view)
+
+        vloer_ask = rho * (1.0 + premie)                 # mijn walk-away als verkoper
+        plafond_bid = rho * (1.0 - DELTA_MIN - premie)   # mijn walk-away als koper
+        kandidaten: list[tuple[float, str, float, int]] = []
+
+        if a.voedsel - self._voedsel_reserve() >= 1 and rho_ander >= vloer_ask:
+            p0 = self._planningsprijs("ASK", 0, rho, premie, view)
+            q0 = self._optimum_lot("ASK", p0)
+            if q0 >= 1:
+                kandidaten.append((rho_ander - vloer_ask, "ASK", p0, q0))
+        if a.erts - self._erts_reserve() >= 1 and plafond_bid >= rho_ander:
+            p0 = self._planningsprijs("BID", 0, rho, premie, view)
+            q0 = self._optimum_lot("BID", p0)
+            if q0 >= 1:
+                kandidaten.append((plafond_bid - rho_ander, "BID", p0, q0))
+
+        if not kandidaten:
+            return None, None
+        surplus, kant, p0, q0 = max(kandidaten, key=lambda k: k[0])
+        if surplus <= THETA_OPEN_REL * rho:              # transactiekost drempel
+            return None, None
+        return Bod.met_prijs(kant, p0, q0), wijze
+
+    # ══════════════ 7. MARKT-EVALUATIE & TEGENBOD (eis 3) ══════════════
+    def evalueer_bod(self, bod: Bod, wijze: Wijze, view: TegenpartijView,
+                     ronde: int, rng=None):
+        """Beoordeel binnenkomend bod op EXACTE totalen (met risicopremie op de
+        kostpoot), accepteer via drempel θ(ronde) of via de shortcut
+        ('beter dan mijn eigen nú volgende concessie'), anders tel ik af
+        langs mijn eigen concessiepad."""
+        a = self.a
+        if view.vogelvrij or view.vertrouwen < T_MIN_HANDEL:
+            return "WEIGER", None, None
+        premie = self._kredietpremie(wijze, view)
+        rho = self.reserveringsprijs()
+
+        if bod.geeft.res is Res.VOEDSEL:
+            # ─ binnenkomende ASK: ik koop voedsel, betaal erts ─
+            q, c = bod.geeft.hoeveelheid, bod.vraagt.hoeveelheid
+            winst = self._delta_nut(Res.VOEDSEL, a.voedsel, q)
+            kost = self._delta_nut(Res.ERTS, a.erts, -c) * (1.0 + premie)
+            p_in = c / max(1, q)
+            p_next = self._planningsprijs("BID", ronde + 1, rho, premie, view)
+            betaalbaar = a.erts - self._erts_reserve() >= c
+            if betaalbaar and ((winst - kost) >= self._acceptatiedrempel(ronde)
+                               or (p_in <= p_next and winst > kost)):
+                return "ACCEPTEER", None, None
+            kant = "BID"
+        else:
+            # ─ binnenkomende BID: ik verkoop voedsel, ontvang erts ─
+            c, q = bod.geeft.hoeveelheid, bod.vraagt.hoeveelheid
+            winst = self._delta_nut(Res.ERTS, a.erts, c)
+            kost = self._delta_nut(Res.VOEDSEL, a.voedsel, -q) * (1.0 + premie)
+            p_in = c / max(1, q)
+            p_next = self._planningsprijs("ASK", ronde + 1, rho, premie, view)
+            leverbaar = a.voedsel - self._voedsel_reserve() >= q
+            if leverbaar and ((winst - kost) >= self._acceptatiedrempel(ronde)
+                              or (p_in >= p_next and winst > kost)):
+                return "ACCEPTEER", None, None
+            kant = "ASK"
+
+        if ronde + 1 >= MAX_RONDES:
+            return "WEIGER", None, None
+        q_t = self._optimum_lot(kant, p_next)
+        if q_t < 1:
+            return "WEIGER", None, None
+        return "TEGENBOD", Bod.met_prijs(kant, p_next, q_t), None
+
+    # ══════════════ 8. ACTIEKEUZE (onveranderde structuur, nieuwe nut-fundament) ═
+    def waarde_perceptie_cel(self, res: Res, n: float) -> float:
+        return self.waarde(res, n)
+
+    def kies_actie(self, perceptie, rng: np.random.Generator) -> "Actie":
+        a, g = self.a, self.a.genoom
+        kandidaten: list[tuple[float, Actie]] = []
+        energief = a.energie / a.max_energie
+
+        u_rust = 1.2 * (1.0 - energief) * (0.5 + g.waarde("stofwisseling")) - 0.1
+        kandidaten.append((u_rust, Actie(ActieType.RUST)))
+
+        bron = perceptie.bron_op_positie
+        if bron is not None and bron.hoeveelheid >= 1.0:
+            n = min(int(bron.hoeveelheid), 8)
+            # concave waarde: hongerige agenten (k_v exponentieel) prefereren oogsten
+            u_oogst = 2.2 * self.waarde(bron.res, n) / 60.0 - 0.3
+            kandidaten.append((u_oogst, Actie(ActieType.OOGST, bron_xy=(bron.x, bron.y))))
+
+        for t in perceptie.buren:
+            u = self.u_aanval(t)
+            if u > 0.0:
+                kandidaten.append((u, Actie(ActieType.AANVAL, doel_id=t.id)))
+            u = self.u_handel(t)
+            if u > 0.0:
+                kandidaten.append((u, Actie(ActieType.HANDEL, doel_id=t.id)))
+
+        cel = perceptie.beste_buurcel(self.waarde)
+        if cel is not None:
+            score = 2.0 * (1.0 + 0.3 * g.waarde("nieuwsgierigheid"))
+            kandidaten.append((score, Actie(ActieType.BEWEEG, richting=cel)))
+
+        scores = np.array([s for s, _ in kandidaten])
+        tau = 0.05 + 0.60 * g.waarde("nieuwsgierigheid")
+        p = np.exp(scores / tau)
+        p_sum = p.sum()
+        p = np.full(len(p), 1.0 / len(p)) if p_sum <= 0 else p / p_sum
+        idx = int(rng.choice(len(kandidaten), p=p))
+        return kandidaten[idx][1]
+
+    def u_aanval(self, t) -> float:
+        """Inclusief de WRAAKTERM-upgrade: een overlevende tegenstander met
+        laag vertrouwen is een toekomstige wraakkandidaat; hoe sterker hij is,
+        hoe duurder de vendetta (review §3.3, nu verankerd)."""
+        a, g, mem = self.a, self.a.genoom, self.a.geheugen
+        T = t.vertrouwen
+        kracht_mij = 6.0 * (0.4 + g.waarde("agressie")) * (0.4 + 0.6 * a.energie / a.max_energie)
+        kracht_doel = 5.0 * (0.4 + t.agressie_schatting) * (0.4 + 0.6 * t.energie_fractie)
+        p_win = 1.0 / (1.0 + math.exp(-1.5 * (kracht_mij - kracht_doel)))
+        buit = 0.35 * t.erts_geschat * ERTS_WAARDE + 0.25 * t.energie_geschat
+        mult = a.wereld.conflictkostenfactor()           # roofdruk-belasting (upgrade 2)
+        vergelding = 0.8 * kracht_doel * (1.0 - T)       # ← wraakterm (upgrade 1)
+        risico = ((1.0 - p_win) * (3.0 + 0.5 * kracht_doel)
+                  + 1.5 * mult
+                  + g.waarde("risico_aversie") * vergelding)
+        relatie_kosten = 0.0 if t.vogelvrij else g.waarde("cooperatie") * 8.0 * T
+        premie = 0.5 * t.erts_geschat * ERTS_WAARDE if t.vogelvrij else 0.0
+        u = (g.waarde("agressie") * (p_win * buit + premie)
+             - g.waarde("risico_aversie") * risico - relatie_kosten - 1.0)
+        hint = mem.gelijkende_casus("vecht", t.bucket, "aanval")
+        if hint is not None:
+            u += 0.6 * hint
+        return u
+
+    def u_handel(self, t) -> float:
+        """Handelsaantrekkelijkheid schaalt nu met de geschatte ruilwinst
+        (|ρ_zelf − ρ_ander|): concaviteit maakt buren waardevollere handelspartners."""
+        a, g = self.a, self.a.genoom
+        if t.vogelvrij or t.vertrouwen < T_MIN_HANDEL:
+            return -999.0
+        rho = self.reserveringsprijs()
+        rho_ander = self._geschatte_reservering(t)
+        zone = abs(rho - rho_ander) / max(rho, 1e-9)
+        potentie = 3.0 * (1.0 + g.waarde("sociabiliteit")) * (1.0 + min(2.0, zone))
+        risico = 6.0 * (1.0 - t.vertrouwen)
+        return (g.waarde("cooperatie") * potentie * t.vertrouwen + 0.5 * potentie
+                - risico * g.waarde("risico_aversie") - 1.2)
+
+    # ══════════════ 9. NAKOMING (concaaf consistent) ══════════════
+    def kom_na(self, leverbinding: Partij) -> bool:
+        """Rationale nakoming: EXACTE marginale leveringskost (log-delta, geen
+        linearisatie) tegen de verwachte toekomstkosten van wanprestatie
+        (premiejacht, verloren handelsrelaties, Kroniek-eskalatie via feiten)."""
+        a, g = self.a, self.a.genoom
+        voorraad = a.voorraad(leverbinding.res)
+        reserve = (self._voedsel_reserve() if leverbinding.res is Res.VOEDSEL
+                   else self._erts_reserve())
+        if voorraad - reserve < leverbinding.hoeveelheid:
+            return False                                  # overlevingsreserve > schuld
+        lever_kost = -self._delta_nut(leverbinding.res, voorraad,
+                                      -leverbinding.hoeveelheid)
+        verwachte_kost = (3.5 * (1.0 + g.waarde("risico_aversie"))
+                          + g.waarde("cooperatie") * 14.0
+                          + 2.0 * (a.stat.feiten + 1))
+        return lever_kost <= verwachte_kost
+```
+
+---
+
+## Deel 4 — Twee kleine wereld-side koppelingen (voor naadloze integratie)
+
+```python
+# ── world.py: contract dat policy verwacht (deel van de roofdruk-upgrade) ──
+# in Wereld.__init__:
+self._roofdruk_ema = 0.0
+# einde van Wereld.stap(), na de actiefase (roofs = aantal AANVAL-uitvoeringen):
+self._roofdruk_ema = 0.95 * self._roofdruk_ema + 0.05 * (roofs_deze_tick / max(1, n_levend))
+# accessor:
+def roofdruk_ema(self) -> float:
+    return self._roofdruk_ema
+```
+
+```python
+# ── world.wikkel_af: in beide succenstakken — omvang draagt nu de PRIJS ───
+self._meld(GebeurtenisType.HANDEL_ESCROW if wijze is Wijze.ESCROW
+           else GebeurtenisType.HANDEL_CREDIT,
+           [aanbieder, antwoorder], bod.prijs)
+# -> de telemetrie krijgt gratis een P(t)-tijdreeks per handel (zie Deel 5).
+```
+
+---
+
+## Deel 5 — Wat deze economie nu meetbaar maakt (hypotheken vóór de volgende run)
+
+1. **Wet van één prijs**: plot P(t) per trade (nu in `omvang`) + rolling dispersie. Hypothese: dispersie daalt waar handelsvolume stijgt — prijsvorming als emergent fenomeen.
+2. **Vlucht naar veiligheid**: aandeel ESCROW-vs-CREDIT afwisselingen tegen T en roofdruk-EMA. Hypothese: kredietaandeel stijgt monotoon in T, collabeert bij roofdruk-pieken — de kredietmarkt bevriest in oorlogstijd.
+3. **Spread-vs-trust**: gemiddelde |P_realized − ρ| per trade gecorrigeerd tegen (1−T). Met de Kroniek actief zou nieuwe generatie-0-populaties dit patroon *vanaf tik 1* moeten tonen — het directe bewijs dat institutioneel geheugen in prijzen is doorgedrongen.
+4. **Lot-grootteverdeling**: volgens CoT stap 6 settelen deals op q = 1–3; significant grotere lots wijzen op te vlakke utiliteitscurven (S_E/S_v-calibratie) — een ingebouwde falsificeerbaarheidstoets van de concaviteit zelf.
+
+Eén waarschuwing bij interpretatie: de dubbele kredietpremie knijpt de zone met ≈(1+π_A)(1+π_B); dat is intentioneel (krediet is voor vertrouwden), maar als het CREDIT-aandeel structureel op ~0 blijft zelfs bij hoge T, is `PI_MAX` de eerste knop om te herkalibreren — niet de trust-drempels.

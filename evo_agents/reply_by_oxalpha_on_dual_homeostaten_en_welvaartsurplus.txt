@@ -1,0 +1,102 @@
+# OxAlpha-Reflectie — De kalibratie sluit, en jullie eigen cijfers bevatten een derde homeostaat die belangrijker is dan de grondwet
+
+Data compleet ontvangen, geen problemen. Eerst mijn eigen score, want ik had twee voorspellingen open staan:
+
+| Pre-registratie (vorige reflectie) | Uitkomst | Oordeel |
+|---|---|---|
+| Hypothese (ii): tijdsherschikking → handel ↑ | **+75,6% deals** | ✅ Geraakt |
+| $P$ daalt licht bij overvloed | $0{,}394 \to 0{,}405$, n.s. | ❌ Mis — roof volgt rijkdom niet hier |
+| $\varepsilon \approx 0{,}3\text{–}0{,}6$ | $\varepsilon = -0{,}018$ | ❌ Miskalibratie — ik rekende met `POPULATIE_DOEL = 50` |
+| Gini ↑ alleen als hamsteren domineert | Gini vlak → (i) verworpen, (ii) bevestigd | ✅ Correct onderscheiden |
+
+Jullie hebben hypothese (ii) zwart-op-wit gewonnen: Gini vlak + overvallen vlak + handel explosief = het surplus ging naar de markt, niet naar de berg of het mes. Mooi resultaat. Maar de melding `POPULATIE_DOEL = 110` is geen voetnoot — hij **verandert de interpretatie van het hele experiment**. Jullie hebben hem zelf al deels getrokken; ik zet hem scherp.
+
+<details>
+<summary><b>✅ Numerieke verificatie</b></summary>
+
+- Gate: $110 \times (0{,}15 + 0{,}85 \times 0{,}25) = 39{,}9$ ✓ sluit op de mature $N \approx 40$.
+- Cohorten: arm A $110 \times 0{,}575 = 63{,}25$; arm B $110 \times (0{,}15 + 0{,}85 \times 0{,}469) = 60{,}4$ → de gate reageerde **negatief** op rijkdom ($-4{,}5\%$ cohort), het perverse signaal dat ik signaleerde, nu kwantitatief.
+- $\varepsilon$-CI: $s_d(\Delta N) = 0{,}5\sqrt{15}/0{,}98 \approx 2{,}0$ agenten → SE $= 2{,}0/(27{,}2\sqrt{15}) = 0{,}019$ → $\varepsilon \in [-0{,}058,\ +0{,}022]$. Een **zeer strak nul** — elke elasticiteit $> 0{,}06$ is uitgesloten.
+- Handelselasticiteit: $\log_2(1626{,}7/926{,}4) = \log_2(1{,}756) = 0{,}81$ per verdubbeling van $K$.
+- $\beta$: $\ln(1{,}82)/\ln 2 = 0{,}864$ ✓.
+- Afgeleide handelsintensiteiten (venster = 50 gen × 300 t = 15.000 t): arm A $6{,}2$ H/100t, arm B $10{,}8$ H/100t.
+
+</details>
+
+---
+
+## 1. De eigenlijke onthulling: de gate is een *intentie*, geen *plafond*
+
+Jullie §3.1 noemt de gate een "hard demografisch plafond". Maar kijk naar jullie eigen getallen:
+
+$$\text{cohort} = 63{,}25 \quad\text{vs}\quad \bar{N} = 27{,}2$$
+
+**Ruim de helft van elk cohort sterft binnen de 300 ticks.** Arithmetic: als het tijdsgemiddelde 27,2 is bij een start van 63, moet het dieptepunt binnen de generatie rond 15–20 liggen — de populatie crasht na de spawn en blijft daar op de bodem. In het mature regime geldt het omgekeerde: daar is $N$ (39–48) *gelijk* aan de gate-doelwaarde (37–46) binnen ±2 agenten. De sterfte-attributie verschilt dus extreem per regime, bij *identieke grondwet*:
+
+| Regime | Cohort | $\bar{N}$ | Attritie |
+|---|---|---|---|
+| Young war (escape) | 63 | 27 | **~57–70%** |
+| Mature peace (942k) | ~40–46 | 39–48 | ≈ 0% |
+
+De conclusie is architectonisch belangrijk: in de serie homeostaten bepaalt de **laatste** schakel het niveau, en dat is niet de gate maar de **attritie** (honger- of geweldssterfte). De gate schrijft voor; de mortaliteit beschikt. En aangezien $P \approx 0{,}40$ (oorlog) in beide escape-armen en $P \approx 0{,}15\text{–}0{,}25$ (vrede) in de mature run — mijn werk hypothese: **de demografie is verankerd aan het geweldsregime, niet aan het voedsel**. Daarmee is $\varepsilon \approx 0$ geen eigenschap van de grondwet maar van de vredesloosheid van de jonge samenleving.
+
+**Gratis cross-check op bestaande data (nul compute):** haal de $N$-trajectoriën uit de vredesregime-knockout. Voorspelling: knockout-arm ($P \to 0{,}43\text{–}0{,}83$) zakt fors in $\bar{N}$ t.o.v. controle-arm, ondanks gelijk EHI. Als dat klopt, is het demografische anker in één oogopslag bevestigd — en is de roofepidemie óók een demografische moordmachine, wat het staartrisico van de Kroniek-knockout nog grimmiger maakt.
+
+## 2. De diepere wet: verzadigde vraag verbreekt de Malthusiaanse koppeling — structureel
+
+Waarom beweegt $N$ *in principe* niet mee met $K$? Klassieke ecologie koppelt via het masseffect: consumptie $\propto N \times R$, dus meer voedsel → meer overlevenden → meer consumptie → nieuw evenwicht met hoger $N$. Onze architectuur heeft die feedback **doorgesneden**: door de concave utiliteit eet elke agent tot aan zijn verzadigingspunt en stoppen daarna. Totale oogst $H = N \times m(R)$ schaalt met vraag, niet met dichtheid. Meetbaar: $H_B/H_A = 2{,}00$ bij *gelijk* $N$ — de totale vraag groeide exact met het aanbod mee.
+
+Daarom is $\varepsilon \equiv 0$ hier **structureel, niet parametrisch**: er is geen $K$ waarvoor de populatie meegroeit, zolang vraag verzadigt en attritie niet honger-gebonden is. Dit is een paper-waardige stelling — in ABM-economieën met concave nuttigheden is Malthusiaanse druk een uitzondering, geen regel. De klassieke "populatie eet de wereld leeg"-dynamiek kan hier principieel niet ontstaan.
+
+**Falsificatievoorspelling voor de $4\times$-run** (alle getallen pre-geregistreerd):
+
+| Grootheid | Voorspelling $4\times K$ | Basis |
+|---|---|---|
+| EHI | $0{,}423 \pm 0{,}02$ | $-0{,}046$ per verdubbeling (log-lineair) |
+| $\bar{N}$ | $26\text{–}28$ (vlak) | structureel argument |
+| Cohort-intentie | $\approx 56$ ($-11\%$ t.o.v. arm A — perverse schaal) | gate op dalend EHI |
+| Biomassa $R$ | $2{,}53\text{–}2{,}64 \times 10^3$ | $\beta$-extrapolatie vs. logistische set |
+| Deals | $2{,}300\text{–}2{,}900$ | naive extrapolatie $2{,}855$; band lager als de matching-kanaal in verzadiging raakt (tijdsvloer) |
+| Gini, $P$, overvallen | vlak | als nu |
+
+Zakt $\bar N$ niet bij $4\times$, dan is de stelling bewezen over twee verdubbelingen en mag hij de titel van het paper dragen.
+
+## 3. De handelsexplosie: het *hoe* is nog open — en de verborgen paradox
+
+Eerst de paradox die in de tabel staat maar niemand opviel: $H$ verdubbelde bij gelijk $\bar N$, dus **de per-capita-inname verdubbelde**. Twee mogelijkheden:
+
+- **(a)** Arm A leefde schaarste-gebonden (inname < verzadiging), arm B zat aan het verzadigingsplafond → hongersterfte in A ≥ B. Maar dan had arm A *lager* $\bar N$ moeten hebben — het tegendeel werd gemeten. Spannend.
+- **(b)** De extra staande biomassa is grotendeels **erts op de node**: voedselvraag is snel gedekt, erts-mijnbouw raakt ook verzadigd (concave hebzucht!), dus het erts blijft *in de grond*. Het surplus is dan **potentieel vermogen, niet gerealiseerde welvaart** — de agenten laten het erts in de berg. Test: splits staande biomassa en inname naar voedsel/erts per arm. Mijn inzet: (b), met stabiele voedselinname per capita.
+
+Dan het handelsmechanisme zelf. Jullie verklaring ("zone van overeenstemming verbreedt") is één van **drie kanalen**, en Gini-vlak is al een aanwijzing dat het dispersions-kanaal *niet* het werk deed:
+
+| Kanaal | Mechanisme | Toets (bestaat al / goedkoop) | Mijn inzet |
+|---|---|---|---|
+| **Matching** | minder zoektijd → meer ontmoetingen/100t | `ontmoetingen/100t` per arm | ~40–60% van de +75,6% |
+| **Trust** | minder wanprestatie-risico → lagere risicopremie → hogere acceptatie | `HANDel_CREDIT`/`ESCROW`-split + acceptatieratio | ~10–25% |
+| **Gains** | reservatieprijzen overlappen breder | spreiding $\lvert\rho_{\text{koper}}-\rho_{\text{verkoper}}\rvert$ + `nabij_misses` | klein (Gini vlak pleit ertegen) |
+
+Vergelijk over experimenten heen: oorlog+schaarste $6{,}2$ H/100t, oorlog+overvloed $10{,}8$, vredes-inval $9{,}9$, diepe vrede $0{,}0$. Daar zit een samenhangende marktvolumewet in — maar hij is **niet monotoon in welvaart** (vrede = nul handel!). Voor het paper: handelsvolume is een heterogeniteits- én surplusindicator, geen welvaartsindicator. Dat moet in de interpretatie, anders lekt de doux-commerce-inversie alsnog als contradictie naar buiten.
+
+## 4. Papier-hygiëne (klein maar belangrijk)
+
+1. **Anti-teleologie.** "De samenleving gebruikt overvloed om ruilwinsten te maximaliseren" impliceert intentie. Agenten zijn heuristiek; het aggregaat is emergent. Formuleer: *"Onder de huidige constitutionele gate en de geobserveerde attritie-regimes wordt overvloed geabsorbeerd door per-capita consumptie en marktactiviteit in plaats van populatiegroei."*
+2. **EHI-hernoeming** doors zetten: `vullingsgraad` (gate-input, ecologisch) vs. `welvaart` ($R/N$ of $\bar U$, dashboard). Jullie conclusie 1 doet dit al — consistent maken in alle figuren.
+3. **$\varepsilon$ met CI** rapporteren: $\varepsilon = -0{,}02$, 95%-CI $[-0{,}06, +0{,}02]$ — dat is een *precisie*-resultaat, geen alleen "n.s.".
+4. **Regime-caveat:** $\varepsilon \approx 0$ is gemeten in een jong oorlogsregime; de mature-vrede-arm (warm checkpoint) staat open en zou het verschil in attritie-regime pas écht vastleggen.
+
+## 5. Concreet verzoeklijstje
+
+**Uit bestaande logs (nul compute, hoogste prioriteit):**
+1. Sterftecensus per arm: `DOOD_HONGER`-count, gevechtsdoden, anders — én de *eenheid* van `omvang` bij `DOOD_HONGER` (de dashboardtabel toont waarden 5–56, dat kunnen geen sterften zijn bij $N\approx40$; semantiek onduidelijk).
+2. $N(t)$ uit beide vredes-knockout-armen (toets §1 voorspelling).
+3. Per generatie: `cohort_gespawned`, `EHI_bij_spawn`, `EHI_gemiddeld`, `N_op_grensvlak` — lost definitief de vraag of de gate op grens-fase-EHI samplet en of survivors meedraaien.
+4. Voedsel/erts-split van staande biomassa én inname (paradox §3).
+5. Credit/escrow-split, ontmoetingen/100t, `nabij_misses` (markt-kanaaldecompositie).
+6. `hebzucht`-genmiddelde per arm (evolutionair antwoord op overvloed — voorspelling: geen significante shift in 50 gen).
+
+**Nieuwe runs:** de $4\times$-falsificatie (tabel §2) blijft het enige experiment dat de structurele stelling kan breken; daarna pas de welvaartsgate-arm (gate leest $R/N$ i.p.v. $R/K$ — voorspelling: $\varepsilon$ springt omhoog *tot* attritie bindt, wat de rollen van grondwet vs. mortaliteit eindelijk scheidt).
+
+---
+
+**Kernzin voor het archief:** *de grondwet schreef 63 levens voor, het regime verleende er 27 — dubbele rijkdom kocht dubbele eetlust en een kwart meer handel, maar geen enkele extra burger. In deze wereld is demografie geen uitvloeisel van voedsel maar van vrede.*

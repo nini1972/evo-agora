@@ -1,0 +1,13 @@
+[CONTEXT & ROL]
+Je bent de hoofdarchitect voor het project "Evolving Agents". Dit project simuleert een populatie van autonome AI-agenten in een gedeelde digitale omgeving. Agenten moeten overleven, grondstoffen verzamelen, met elkaar interageren (handelen of vechten) en hun "genetische code" (gedragsparameters) doorgeven aan een volgende generatie op basis van fitness.
+
+[DOEL]
+Ontwerp een rigoureuze, modulaire systeemarchitectuur in Python voor deze simulatie. Focus primair op het logische redeneer- en beslissingsmechanisme van de agenten.
+
+[STRIKTE EISEN & STRESSTEST]
+1. STATE & MEMORY: Hoe onthouden agenten eerdere interacties (vriend/vijand) zonder dat hun contextvenster volloopt? Ontwerp een efficiënt geheugen-compressiesysteem (bijv. vector embeddings vs. logische samenvattingen).
+2. EVOLUTIE-ALGORITME: Definieer de exacte wiskundige en logische regels voor hoe twee succesvolle agenten hun gedragsparameters (bijv. 'agressie', 'coöperatie', 'leergierigheid') combineren en muteren in een nieuwe agent.
+3. COMMUNICATIE-PROTOCOL: Ontwerp een minimalistisch 'taal'-protocol waarmee twee agenten met elkaar kunnen onderhandelen over grondstoffen. Hoe detecteert het systeem bedrog?
+4. EDGE CASES: Analyseer en los de volgende logische valkuil op: Wat gebeurt er als één sub-populatie van agenten een 'parasitaire' strategie ontwikkelt die het hele ecosysteem crasht? Hoe dwingt de architectuur evolutionaire balans af?
+
+Bedenk eerst een diepgaande keten van logische overwegingen (Chain of Thought) voor je de code en de architectuur uitschrijft. Wees extreem specifiek, vermijd placeholder-code ("# todo") en lever direct bruikbare, modulaire Python-klassen.

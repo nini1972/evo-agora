@@ -1,0 +1,1318 @@
+# Systeemarchitectuur "Evolving Agents" — Ontwerpdocument & Referentie-implementatie
+
+---
+
+## Deel 1 — Chain of Thought: ontwerpoverwegingen vóór de code
+
+**Stap 0 — Invarianten die alles bepalen.**
+Voordat ik één klasse schrijf, fixeer ik vier invarianten waaraan élke module moet voldoen:
+
+1. **O(1) geheugen per agent per bekende tegenpartij** — anders explodeert de simulatie bij populaties >1000.
+2. **Determinisme en seedbaarheid** — evolutie-experimenten moeten reproduceerbaar zijn. Dit is de hoofdreden dat ik géén neurale embeddings als primaire geheugenvorm kies (zie stap 1).
+3. **Elke beslissing is genomisch geparametriseerd** — er bestaat geen "harde" intelligentie buiten het genoom; anders selecteert evolutie op niets.
+4. **De wereld is fysica + notaris, nooit strategist** — de omgeving handhaaft contracten en meet feiten, maar neemt geen tactische beslissingen voor agenten.
+
+**Stap 1 — Geheugen: waarom een hybride van logische samenvatting + gebonden casusopslag.**
+Een raw interactielog is O(n) en "vult het contextvenster". Volledig op embeddings gebaseerd geheugen (alles door een encoder halen, cosine-similarity recall) heeft drie problemen: niet-deterministisch, koud-start (geen trainingsdata in generatie 0), en oninterpreteerbaar wanneer je wilt achterhalen *waarom* een agent iemand niet vertrouwt. Mijn keuze is een **drie-lagenpiramide**:
+
+- **Laag 1 — Episodische ringbuffer** (vaste capaciteit, bv. 24 events): rauwe, recente feiten. Dié enige laag "volloopt", maar hij is begrensd en dient alleen voor case-based recall.
+- **Laag 2 — Reputatiemap** (O(1) per bekende peer): een exponentially-weighted trust-score die bij álle binnenkomende events *streamend* wordt bijgewerkt. Compressie gebeurt dus bij arrivement, niet achteraf: `T ← (1−α)·T + α·s` met asymmetrische α gestuurd door het *vergeving*-gen (negatieve signalen wegen zwaarder voor wraakzuchtige genomen). tijd-verval: `T_eff = 0.5 + (T−0.5)·e^(−Δt/τ)`, waarbij τ door het *retentie*-gen wordt geschaald.
+- **Laag 3 — Arche-type-prioren** (constant 9 cellen): een 3×3-grid over (agressie-tier × coöperatie-tier) van waargenomen fenotypes. Onbekenden krijgen een geschromkte prior `(Σs + m·μ₀)/(n+m)`. Dit is generalisatie/stereotypering — de compressie van honderden episodes naar negen getallen.
+
+Als *optionele* recall-laag gebruik ik wél embeddings — maar via **feature hashing** (deterministische hash van `sleutel=waarde`-paren naar een sparse vector, cosine-similarity). Nul trainingsdata, volledig reproduceerbaar, en verwisselbaar met een geleerde encoder omdat achter dezelfde interface zit. Conclusie: logische samenvatting is de dragende structuur; embeddings zijn de smaakmaker.
+
+**Stap 2 — Evolutie: definities vóór mechanismen.**
+Fitness moet eerst gedefinieerd zijn voordat crossover zin heeft. Ik kies een scalare, gewogen som van levensduur, eindvermogen (erts), nakomelingen, overlevingsbonus en handelsvolume, min een feiten-straf. Dan:
+
+- **Rang-normalisatie i.p.v. fitness-proportioneel**: proportionele selectie collabeert bij schaalveranderingen van F; rangen zijn invariant onder monotope transformaties.
+- **Fitness sharing (kernel-dichtheid)**: `F'_i = F_i / Σ_j exp(−(d_ij/σ)²)`. Dit is mijn eerste anti-convergentiewapen (koppelt aan stap 4).
+- **SBX-crossover (Simulated Binary Crossover)** voor real-valued genen: kinderen blijven bij de ouders in de buurt (exploitatie) met distributie-index η_c=15. Formules: `β_u = (2u)^{1/(η+1)}` als u≤½ anders `(1/(2(1−u)))^{1/(η+1)}`; kind `= ½[(1±β_u)p₁ + (1∓β_u)p₂]`.
+- **Zelfadaptieve mutatie (ES-stijl)**: elk genoom draagt zijn eigen σ-vector mee, die mee-evolueert via `σ ← σ·exp(τ·N(0,1))`, `τ = 1/√(2d)`. De mutatiegrofte zelf is dus erfelijk — agenten in stabiele omgevingen evolueren naar fijne tuning, in chaotische naar grote sprongen. Plus een macromutatie (p=0.02, genreset) tegen stagnatie.
+- **Toernooiselectie (k=3) + elitisme (2)**: robuust tegen outlier-fitness, behoudt beste genomen.
+
+**Stap 3 — Communicatie: bedrog kan alleen gedetecteerd worden als er een feitenregistratie is.**
+Twee agenten onderling kunnen elkaars leugens nooit verifiëren — daarvoor is altijd een derde partij of gedeelde staat nodig. Daarom: de wereld fungeert als **notaris** (ledger) én als **sleutelhouder** (HMAC-signering). Het protocol is een minimale afwisselende-biedingen-FSM (max. 3 rondes) met vijf berichttypen: `OPEN, TEGENBOD, ACCEPTEER, WEIGER` + afwikkelwijze. Integriteit op drie niveaus:
+
+1. **Cryptografisch**: elk bericht is `HMAC-BLAKE2b(sessiesleutel, payload)`; per (zender,ontvanger)-paar een strikt monotoon volgnummer → spoofing en replay worden triviaal gevonden.
+2. **Economisch**: twee afwikkelmodi — `ESCROW` (wereld houdt borgen vast, atomische ruil, 5% courtage, risicovrij) en `CREDIT` (gratis, maar tweede mover kan defaulten). Bij CREDIT beslist een *rationele nakomingscheck*: de agent defaultt enkel als direct gewin > verwachte toekomstkost (premiejacht + verloren handelsrelaties + escalatie met eerdere feiten). Bedrog is zo **endogeen**: het evolueert weg als instituties sterk zijn en terug als ze zwak zijn — precies wat we willen bestuderen.
+3. **Sociaal**: wanprestatie → *feit* geregistreerd, en **geruchten verspreiden zich ruimtelijk begrensd** (radius 6): omstanders schrijven −0.7 naar hun eigen arche type-stats voor het fenotype van de dader. Bij ≥3 feiten: *vogelvrij*-status (zichtbaar in percepties; geen handel meer, jacht-premie actief).
+
+**Stap 4 — Edge case: de parasitaire collaps.**
+De valkuil is een klassieke Lotka-Volterra/Tragedy-of-the-Commons-dynamiek: zolang coöperateurs bestaan, stijgt het parasitaire aandeel p (aanval is goedkoper dan produceren); sterven de coöperateurs, dan stort ook p in — en als consumptie C structureel boven de maximale duurzame oogst `rK/4` van de logistieke bronregeneratie ligt, gaat **R → 0 en sterft álles**, inclusief de parasieten. Totale extinctie is de slechtst denkbare evolutionaire uitkomst (niemand leert meer). Ik los dit op met vijf gestapelde verdedigingslinies, elk mechanisch in de code (volledige analyse in Deel 4): logistieke schaarste-feedback, een demografische vruchtbaarheidspoort ∝ ecosysteemgezondheid, frequentie-afhankelijke conflictkosten + fitness-sharing, zelffinancierende premiejacht op vogelvrijverklaarden, en genetische redding via Hall-of-Fame + immigrantenquota.
+
+Pas ná deze keten volgt de code.
+
+---
+
+## Deel 2 — Architectuuroverzicht
+
+```
+┌──────────────────────────── simulation.py ────────────────────────────┐
+│  hoofdlus:  GENERATIES × TICKS_PER_GENERATIE                          │
+└──────────────────────────────┬────────────────────────────────────────┘
+                               ▼
+┌──────────────────────────── world.py ─────────────────────────────────┐
+│  Tick-volgorde:                                                       │
+│   1. perceptie → beleid → actie        (agent.py, policy.py)          │
+│   2. onderhandelingen + afwikkeling    (protocol.py)                  │
+│   3. bronlogistiek (logistieke groei), metabolisme, auto-etend        │
+│   4. vervallen schulden, feiten, geruchten                            │
+│   5. ecosysteemgovernor                (ecosystem.py)                 │
+│   6. reproductie → nieuwe genomen      (evolution.py, genome.py)      │
+│                                                                       │
+│  Diensten: HMAC-notariaat · schuldenledger · gevechtsresolutie        │
+└──────────┬─────────────────────┬──────────────────────┬───────────────┘
+           ▼                     ▼                      ▼
+     memory.py             protocol.py            ecosystem.py
+     (3-lagen geheugen,    (taal, FSM,            (EHI, vruchtbaar-
+      O(1) compressie)      fraudedetectie)        heids-poort, redding)
+                                                          ▼
+                                                    evolution.py
+                              genome.py ◄──────── (selectie, SBX,
+                              (genen, σ-vector)    zelfadaptieve mutatie,
+                                                   fitness-sharing, HoF)
+```
+
+---
+
+## Deel 3 — Referentie-implementatie
+
+### 3.1 `genome.py` — genetische code met zelfadaptieve mutatiestappen
+
+```python
+# ── bestand: evolib/genome.py ─────────────────────────────────────────────
+"""Genetische code: 9 gedragsgenen + een zelfadaptieve sigma-vector."""
+from __future__ import annotations
+import numpy as np
+
+GENE_NAMEN = (
+    "agressie", "cooperatie", "hebzucht", "nieuwsgierigheid",
+    "retentie", "vergeving", "sociabiliteit", "risico_aversie", "stofwisseling",
+)
+N_GENES = len(GENE_NAMEN)
+SIGMA_MIN, SIGMA_MAX = 0.005, 0.35
+
+
+class Genome:
+    __slots__ = ("g", "sigma")
+
+    def __init__(self, g, sigma=None):
+        self.g = np.clip(np.asarray(g, dtype=np.float64), 0.0, 1.0)
+        if sigma is None:
+            self.sigma = np.full(N_GENES, 0.12)
+        else:
+            self.sigma = np.clip(np.asarray(sigma, dtype=np.float64), SIGMA_MIN, SIGMA_MAX)
+
+    @classmethod
+    def willekeurig(cls, rng: np.random.Generator) -> "Genome":
+        return cls(rng.random(N_GENES), rng.uniform(0.03, 0.20, N_GENES))
+
+    def waarde(self, naam: str) -> float:
+        return float(self.g[GENE_NAMEN.index(naam)])
+
+    def afstand(self, other: "Genome") -> float:
+        return float(np.linalg.norm(self.g - other.g))
+
+    def fenotype_bucket(self) -> tuple[int, int]:
+        """Compressie naar 3x3 arche type-grid: (agressie-tier, cooperatie-tier)."""
+        a = min(int(self.warde := self.waarde("agressie") * 3), 2)
+        c = min(int(self.waarde("cooperatie") * 3), 2)
+        return (a, c)
+
+    @classmethod
+    def sbx_kruising(cls, p1: "Genome", p2: "Genome", rng: np.random.Generator,
+                     eta: float = 15.0) -> "Genome":
+        """Simulated Binary Crossover; kinderen clusteren rond de ouders."""
+        u = rng.random(N_GENES)
+        beta = np.where(
+            u <= 0.5,
+            (2.0 * u) ** (1.0 / (eta + 1.0)),
+            (1.0 / (2.0 * np.maximum(1e-12, 1.0 - u))) ** (1.0 / (eta + 1.0)),
+        )
+        c1 = 0.5 * ((1.0 + beta) * p1.g + (1.0 - beta) * p2.g)
+        c2 = 0.5 * ((1.0 - beta) * p1.g + (1.0 + beta) * p2.g)
+        g = c1 if rng.random() < 0.5 else c2
+        return cls(g, 0.5 * (p1.sigma + p2.sigma))
+
+    def muteer(self, rng: np.random.Generator, p_macro: float = 0.02) -> "Genome":
+        """Zelfadaptieve Gauss-mutatie (Schwefel) + macromutatie tegen stagnatie."""
+        tau = 1.0 / np.sqrt(2.0 * N_GENES)
+        self.sigma = np.clip(self.sigma * np.exp(tau * rng.standard_normal(N_GENES)),
+                             SIGMA_MIN, SIGMA_MAX)
+        self.g = np.clip(self.g + self.sigma * rng.standard_normal(N_GENES), 0.0, 1.0)
+        if rng.random() < p_macro:
+            self.g[rng.integers(N_GENES)] = rng.random()
+        return self
+
+    def kopie(self) -> "Genome":
+        return Genome(self.g.copy(), self.sigma.copy())
+
+    def __repr__(self) -> str:
+        return "Genome({" + ", ".join(
+            f"{n}: {self.g[i]:.2f}" for i, n in enumerate(GENE_NAMEN)) + "})"
+```
+
+### 3.2 `memory.py` — begrensde, comprimerende geheugenpiramide
+
+```python
+# ── bestand: evolib/memory.py ─────────────────────────────────────────────
+"""Drie-lagen geheugen: episodische ringbuffer (recall) ->
+reputatie-EMA (O(1)-samenvatting) -> arche type-prior (generalisatie).
+Compressie gebeurt STREAMEND bij arrivement; de buffer vult nooit 'het venster'
+want beslissingen lezen uitsluitend de samengevatte lagen + top-K gelijkenissen."""
+from __future__ import annotations
+import hashlib
+import math
+from collections import deque
+from dataclasses import dataclass
+
+import numpy as np
+
+
+@dataclass(frozen=True)
+class Episode:
+    tick: int
+    peer_id: int
+    peer_bucket: tuple[int, int]
+    soort: str            # "handel" | "overval" | "gerucht" | "schulden"
+    mijn_actie: str
+    diens_actie: str
+    valentie: float       # in [-1, +1]
+
+
+@dataclass
+class Reputatie:
+    ema: float = 0.5      # genormaliseerd vertrouwen in [0, 1]
+    n: int = 0
+    laatste_tick: int = 0
+    verraak_count: int = 0
+
+
+class CasusEncoder:
+    """Deterministische feature-hashing embedding (vervangbaar door een
+    geleerde encoder: zelfde interface, zelfde cosinus-semantiek)."""
+    DIM = 512
+
+    @staticmethod
+    def encode(features: list[str]) -> np.ndarray:
+        v = np.zeros(CasusEncoder.DIM)
+        for f in features:
+            h = hashlib.blake2b(f.encode("utf-8"), digest_size=8).digest()
+            idx = int.from_bytes(h[:4], "little") % CasusEncoder.DIM
+            teken = 1.0 if (h[4] & 1) else -1.0
+            v[idx] += teken
+        n = float(np.linalg.norm(v))
+        return v / n if n > 0.0 else v
+
+
+class SociaalGeheugen:
+    def __init__(self, vergeving: float, retentie: float,
+                 episodische_cap: int = 24, basis_alpha: float = 0.35,
+                 shrinkage_m: float = 4.0):
+        self.episodisch: deque[Episode] = deque(maxlen=episodische_cap)
+        self.episodisch_vec: deque[np.ndarray] = deque(maxlen=episodische_cap)
+        self.reputaties: dict[int, Reputatie] = {}
+        self.archetypen: dict[tuple[int, int], tuple[float, float]] = {}  # bucket -> (som, n)
+        # Asymmetrische leersnelheden uit het 'vergeving'-gen:
+        self.alpha_pos = basis_alpha * (0.3 + 0.7 * vergeving)   # wraakzucht: positiefs tellen nauwelijks
+        self.alpha_neg = basis_alpha * (1.6 - 0.6 * vergeving)   # wraakzucht: negatiefs wegen dubbel
+        self.tau_horizon = 150.0 + 900.0 * retentie              # geheugenverval-schaal
+        self.shrinkage_m = shrinkage_m
+
+    # ── schrijven ────────────────────────────────────────────────────────
+    def registreer(self, ep: Episode) -> None:
+        if len(self.episodisch) == self.episodisch.maxlen:
+            self.episodisch.popleft()          # vergeet oudste rauwe episode
+            self.episodisch_vec.popleft()
+        self.episodisch.append(ep)
+        self.episodisch_vec.append(CasusEncoder.encode(
+            [f"soort={ep.soort}", f"bucket={ep.peer_bucket}",
+             f"ik={ep.mijn_actie}", f"ander={ep.diens_actie}"]))
+        self._vouw_reputatie(ep)               # logische samenvatting, O(1)
+        self._vouw_archetype(ep.peer_bucket, ep.valentie)
+
+    def _vouw_reputatie(self, ep: Episode) -> None:
+        rep = self.reputaties.setdefault(ep.peer_id, Reputatie())
+        alpha = self.alpha_pos if ep.valentie >= 0.0 else self.alpha_neg
+        s = 0.5 + 0.5 * max(-1.0, min(1.0, ep.valentie))
+        rep.ema = (1.0 - alpha) * rep.ema + alpha * s
+        rep.n += 1
+        rep.laatste_tick = ep.tick
+        if ep.valentie <= -0.5:
+            rep.verraak_count += 1
+
+    def _vouw_archetype(self, bucket: tuple[int, int], valentie: float) -> None:
+        som, n = self.archetypen.get(bucket, (0.0, 0))
+        self.archetypen[bucket] = (som + (0.5 + 0.5 * valentie), n + 1)
+
+    # ── lezen ────────────────────────────────────────────────────────────
+    def archetype_prior(self, bucket: tuple[int, int]) -> float:
+        som, n = self.archetypen.get(bucket, (0.0, 0))
+        return (som + self.shrinkage_m * 0.5) / (n + self.shrinkage_m)
+
+    def vertrouwen(self, tick: int, peer_id: int, peer_bucket: tuple[int, int]) -> float:
+        """Persoonlijke ervaring (met tijdsverval) gegoten met archetype-prior."""
+        rep = self.reputaties.get(peer_id)
+        prior = self.archetype_prior(peer_bucket)
+        if rep is None or rep.n == 0:
+            return prior
+        vervaging = math.exp(-(tick - rep.laatste_tick) / self.tau_horizon)
+        t_persoon = 0.5 + (rep.ema - 0.5) * vervaging
+        c = rep.n / (rep.n + 3.0)              # betrouwbaarheid persoonlijke data
+        return c * t_persoon + (1.0 - c) * prior
+
+    def gelijkende_casus(self, soort: str, peer_bucket: tuple[int, int],
+                         mijn_actie: str) -> float | None:
+        """Case-based hint: valentie van de meest gelijkende opgeslagen episode."""
+        q = CasusEncoder.encode([f"soort={soort}", f"bucket={peer_bucket}",
+                                 f"ik={mijn_actie}", "ander=*"])
+        beste, beste_sim = None, 0.05
+        for ep, v in zip(self.episodisch, self.episodisch_vec):
+            sim = float(np.dot(q, v))
+            if sim > beste_sim:
+                beste, beste_sim = ep, sim
+        return beste.valentie if beste is not None else None
+```
+
+### 3.3 `protocol.py` — taal, FSM, integriteit en onderhandelingsrunner
+
+```python
+# ── bestand: evolib/protocol.py ───────────────────────────────────────────
+"""Minimale onderhandelingstaal met cryptografische integriteit.
+Bedrogdetectie = (1) HMAC-handtekeningen + replay-bescherming,
+(2) notariële afwikkeling door de wereld (escrow / schuldenledger),
+(3) sociaal: feiten + geruchten in de geheugens van getuigen."""
+from __future__ import annotations
+import hashlib
+import hmac
+from dataclasses import dataclass
+from enum import Enum, auto
+
+
+class Res(Enum):
+    VOEDSEL = 0
+    ERTS = 1
+
+
+@dataclass(frozen=True)
+class Partij:
+    res: Res
+    hoeveelheid: int
+
+
+@dataclass(frozen=True)
+class Bod:
+    geeft: Partij      # wat de bieder afstaat
+    vraagt: Partij     # wat de bieder terugwil
+
+
+class Wijze(Enum):
+    ESCROW = auto()    # wereld als notaris: atomisch, 5% courtage, geen risico
+    CREDIT = auto()    # op vertrouwen: gratis, risico op wanprestatie
+
+
+class BerichtType(Enum):
+    OPEN = auto()
+    TEGENBOD = auto()
+    ACCEPTEER = auto()
+    WEIGER = auto()
+
+
+@dataclass(frozen=True)
+class Bericht:
+    zender: int
+    ontvanger: int
+    type: BerichtType
+    bod: Bod | None
+    wijze: Wijze | None
+    ronde: int
+    seq: int
+    handtekening: bytes = b""
+
+
+@dataclass(frozen=True)
+class TegenpartijView:
+    """Alles wat een agent officieel over een ander 'ziet' tijdens handelen."""
+    id: int
+    bucket: tuple[int, int]
+    vertrouwen: float
+    erts_geschat: float
+    energie_fractie: float
+    vogelvrij: bool
+
+
+class BerichtSigneerder:
+    """HMAC-notariaat. Monotone seq per (zender, ontvanger) => replay-detectie."""
+
+    def __init__(self, sessiesleutel: bytes):
+        self.sleutel = sessiesleutel
+        self._seq: dict[tuple[int, int], int] = {}
+
+    def volgende_seq(self, zender: int, ontvanger: int) -> int:
+        k = (zender, ontvanger)
+        self._seq[k] = self._seq.get(k, 0) + 1
+        return self._seq[k]
+
+    def _payload(self, b: Bericht) -> bytes:
+        return repr((b.zender, b.ontvanger, b.type.name, str(b.bod),
+                     str(b.wijze), b.ronde, b.seq)).encode("utf-8")
+
+    def signeer(self, b: Bericht) -> bytes:
+        return hmac.new(self.sleutel, self._payload(b), hashlib.blake2b).digest()
+
+    def verifieer(self, b: Bericht, verwachte_seq: int) -> bool:
+        if b.seq != verwachte_seq:                       # replay of gap
+            return False
+        return hmac.compare_digest(b.handtekening, self.signeer(b))
+
+
+MAX_RONDES = 3
+
+
+def onderhandel(wereld, a, b, rng):
+    """Afwisselende-biedingen FSM. Returns wereld.wikkel_af(...) of None."""
+    va = wereld.tegenpartij_view(a.id, b.id)
+    vb = wereld.tegenpartij_view(b.id, a.id)
+    aanbieder, antwoorder = a, b
+    bod, wijze = aanbieder.beleid.openingsbod(va if aanbieder is a else vb, rng)
+    if bod is None:
+        return None
+    for ronde in range(MAX_RONDES):
+        wereld.registreer_bericht(aanbieder.id, antwoorder.id,
+                                  BerichtType.OPEN if ronde == 0 else BerichtType.TEGENBOD,
+                                  bod, wijze, ronde)
+        view = vb if antwoorder is b else va
+        beslissing, tegenbod, tegenwijze = antwoorder.beleid.evalueer_bod(
+            bod, wijze, view, rng)
+        if beslissing == "ACCEPTEER":
+            wereld.registreer_bericht(antwoorder.id, aanbieder.id,
+                                      BerichtType.ACCEPTEER, bod, wijze, ronde)
+            return wereld.wikkel_af(aanbieder, antwoorder, bod, wijze)
+        if beslissionstype := beslissing:
+            if beslissionstype == "WEIGER" or tegenbod is None:
+                wereld.registreer_bericht(antwoorder.id, aanbieder.id,
+                                          BerichtType.WEIGER, None, None, ronde)
+                return None
+        aanbieder, antwoorder = antwoorder, aanbieder
+        bod, wijze = tegenbod, (tegenwijze or wijze)
+    return None
+```
+
+### 3.4 `policy.py` — het utilitaristische beslisssmechanisme (kern van de opdracht)
+
+```python
+# ── bestand: evolib/policy.py ─────────────────────────────────────────────
+"""Beslisssmechanisme: kandidaat-acties -> genomisch geparametriseerde
+utiliteitsfuncties -> softmax-selectie (temperatuur = nieuwsgierigheid).
+GEEN enkele drempel of gewicht staat hardcoded buiten bereik van het genoom
+of van de wereldconstanten: selectie kan dus ALLES leren."""
+from __future__ import annotations
+import math
+
+import numpy as np
+
+from protocol import ActieType  # zie 3.5; gedeelde vocabulaire
+from protocol import Bod, Partij, Res, TegenpartijView, Wijze
+
+VOEDSELENERGIE = 11.0
+ERTS_WAARDE = 6.0
+RES_ATTR = {Res.VOEDSEL: "voedsel", Res.ERTS: "erts"}
+
+
+class Beleid:
+    def __init__(self, agent):
+        self.a = agent
+
+    # ── subjectieve waardering ───────────────────────────────────────────
+    def waarde(self, res: Res, n: float) -> float:
+        a = self.a
+        if res is Res.VOEDSEL:
+            honger_boost = 1.0 + 1.8 * (1.0 - a.energie / a.max_energie)
+            return n * VOEDSELENERGIE * honger_boost      # schaarste-feedback (edge case L1)
+        return n * ERTS_WAARDE * (0.7 + 0.6 * a.genoom.waarde("hebzucht"))
+
+    def _voorraad(self, res: Res) -> int:
+        return getattr(self.a, RES_ATTR[res])
+
+    # ── actiekeuze ───────────────────────────────────────────────────────
+    def kies_actie(self, perceptie, rng: np.random.Generator) -> "Actie":
+        from protocol import Actie
+        a, g, mem = self.a, self.a.genoom, self.a.geheugen
+        kandidaten: list[tuple[float, "Actie"]] = []
+        energief = a.energie / a.max_energie
+
+        # RUSTEN: herstel weegt zwaarder naarmate hongeriger + efficiënter metabolisme
+        u_rust = 1.2 * (1.0 - energief) * (0.5 + g.waarde("stofwisseling")) - 0.1
+        kandidaten.append((u_rust, Actie(ActieType.RUST)))
+
+        # OOGSTEN: sta je op een bron?
+        bron = perceptie.bron_op_positie
+        if bron is not None and bron.hoeveelheid >= 1.0:
+            n = min(int(bron.hoeveelheid), 8)
+            u_oogst = 2.2 * self.waarde(bron.res, n) / 60.0 - 0.3
+            kandidaten.append((u_oogst, Actie(ActieType.OOGST, bron_xy=(bron.x, bron.y))))
+
+        # AANVALEN / HANDELEN per aangrenzende tegenpartij
+        for t in perceptie.buren:
+            u = self.u_aanval(t)
+            if u > 0.0:
+                kandidaten.append((u, Actie(ActieType.AANVAL, doel_id=t.id)))
+            u = self.u_handel(t)
+            if u > 0.0:
+                kandidaten.append((u, Actie(ActieType.HANDEL, doel_id=t.id)))
+
+        # VERPLAATSEN naar de waardevolste naburige cel
+        cel = perceptie.beste_buurcel(self.waarde)
+        if cel is not None:
+            score = 2.0 * (1.0 + 0.3 * g.waarde("nieuwsgierigheid"))
+            kandidaten.append((score, Actie(ActieType.BEWEEG, richting=cel)))
+
+        # Softmax met genomische temperatuur (hoog nieuwsgierigheid -> hogere tau)
+        scores = np.array([s for s, _ in kandidaten])
+        tau = 0.05 + 0.60 * g.waarde("nieuwsgierigheid")
+        p = np.exp(scores / tau)
+        p_sum = p.sum()
+        p = np.full(len(p), 1.0 / len(p)) if p_sum <= 0 else p / p_sum
+        idx = int(rng.choice(len(kandidaten), p=p))
+        return kandidaten[idx][1]
+
+    def u_aanval(self, t) -> float:
+        a, g, mem = self.a, self.a.genoom, self.a.geheugen
+        T = t.vertrouwen
+        kracht_mij = 6.0 * (0.4 + g.waarde("agressie")) * (0.4 + 0.6 * a.energie / a.max_energie)
+        kracht_doel = 5.0 * (0.4 + t.agressie_schatting) * (0.4 + 0.6 * t.energie_fractie)
+        p_win = 1.0 / (1.0 + math.exp(-1.5 * (kracht_mij - kracht_doel)))
+        buit = 0.35 * t.erts_geschat * ERTS_WAARDE + 0.25 * t.energie_geschat
+        mult = a.wereld.conflictkostenfactor()                 # institutionele demping (edge case L3)
+        risico = (1.0 - p_win) * (3.0 + 0.5 * kracht_doel) + 1.5 * mult
+        relatie_kosten = 0.0 if t.vogelvrij else g.waarde("cooperatie") * 8.0 * T
+        premie = 0.5 * t.erts_geschat * ERTS_WAARDE if t.vogelvrij else 0.0  # premiejacht (L4)
+        u = (g.waarde("agressie") * (p_win * buit + premie)
+             - g.waarde("risico_aversie") * risico - relatie_kosten - 1.0)
+        hint = mem.gelijkende_casus("vecht", t.bucket, "aanval")
+        if hint is not None:
+            u += 0.6 * hint
+        return u
+
+    def u_handel(self, t) -> float:
+        a, g = self.a, self.a.genoom
+        if t.vogelvrij or t.vertrouwen < 0.15:                 # harde uitsluiting (ostracisme)
+            return -999.0
+        potentie = 3.0 * (1.0 + g.waarde("sociabiliteit"))
+        risico = 6.0 * (1.0 - t.vertrouwen)
+        return (g.waarde("cooperatie") * potentie * t.vertrouwen + 0.5 * potentie
+                - risico * g.waarde("risico_aversie") - 1.2)
+
+    # ── onderhandelen ────────────────────────────────────────────────────
+    def openingsbod(self, view: TegenpartijView, rng):
+        a = self.a
+        if view.vertrouwen < 0.15 or view.vogelvrij:
+            return None, None
+        energief = a.energie / a.max_energie
+        if a.voedsel >= 3 and energief < 0.95 and a.erts < 6:
+            geef, vraag = Res.VOEDSEL, Res.ERTS
+        elif a.erts >= 3 and (energief < 0.5 or a.voedsel < 2):
+            geef, vraag = Res.ERTS, Res.VOEDSEL
+        else:
+            return None, None
+        marge = 0.05 + 0.45 * a.genoom.waarde("hebzucht")
+        for geef_n in range(1, min(6, self._voorraad(geef)) + 1):
+            for vraag_n in range(1, 9):
+                if self.waarde(vraag, vraag_n) >= self.waarde(geef, geef_n) * (1.0 + marge):
+                    wijze = Wijze.ESCROW if view.vertrouwen < 0.60 else Wijze.CREDIT
+                    return Bod(Partij(geef, geef_n), Partij(vraag, vraag_n)), wijze
+        return None, None
+
+    def evalueer_bod(self, bod: Bod, wijze: Wijze, view: TegenpartijView, rng):
+        a = self.a
+        if view.vogelvrij or view.vertrouwen < 0.12:
+            return "WEIGER", None, None
+        ontvang, lever = bod.geeft, bod.vraagt
+        if self._voorraad(lever.res) < lever.hoeveelheid:
+            return "WEIGER", None, None                        # fysiek onmogelijk
+        w_ontv = self.waarde(ontvang.res, ontvang.hoeveelheid)
+        w_lever = self.waarde(lever.res, lever.hoeveelheid)
+        risico_korting = 0.0 if wijze is Wijze.ESCROW else (1.0 - view.vertrouwen) * w_lever * 1.2
+        netto = w_ontv - w_lever - risico_korting
+        drempel = 0.2 + 1.2 * a.genoom.waarde("hebzucht")
+        if netto >= drempel:
+            return "ACCEPTEER", None, None
+        # Tegenbod: schuif één eenheid in eigen voordeel (eerst minderen, dan meer eisen)
+        nieuwe_lever = lever.hoeveelheid - 1
+        if nieuwe_lever >= 1:
+            tb = Bod(Partij(ontvang.res, ontvang.hoeveelheid), Partij(lever.res, nieuwe_lever))
+            return "TEGENBOD", tb, wijze
+        nieuwe_ontv = ontvang.hoeveelheid + 1
+        if nieuwe_ontv <= 8:
+            tb = Bod(Partij(ontvang.res, nieuwe_ontv), Partij(lever.res, lever.hoeveelheid))
+            return "TEGENBOD", tb, wijze
+        return "WEIGER", None, None
+
+    def kom_na(self, leverbinding: Partij) -> bool:
+        """Rationale nakomingsbeslissing: direct gewin vs verwachte toekomstkosten.
+        Maakt bedrog ENDOGEEN: verdwijnt bij sterke instituties, komt terug bij zwakke."""
+        a, g = self.a, self.a.genoom
+        w = self.waarde(leverbinding.res, leverbinding.hoeveelheid)
+        if self._voorraad(leverbinding.res) < leverbinding.hoeveelheid:
+            return False                                       # faillissement != opzet
+        verwachte_kost = (3.5 * (1.0 + g.waarde("risico_aversie"))   # premiejagers
+                          + g.waarde("cooperatie") * 14.0            # verloren handelsnetwerk
+                          + 2.0 * (a.stat.feiten + 1))               # ostracisme-eskalatie
+        return w > verwachte_kost
+```
+
+### 3.5 `agent.py` — de autonome agent
+
+```python
+# ── bestand: evolib/agent.py ──────────────────────────────────────────────
+import itertools
+from dataclasses import dataclass, field
+
+import numpy as np
+
+from genome import Genome
+from memory import Episode, SociaalGeheugen
+from policy import RES_ATTR, Beleid
+from protocol import Actie, ActieType, Res
+
+
+@dataclass
+class AgentStatistiek:
+    geboorte_tick: int = 0
+    dood_tick: int | None = None
+    nakomelingen: int = 0
+    feiten: int = 0            # geregistreerde wanprestaties
+    kills: int = 0
+    handels: int = 0
+
+    def momentopname(self, tick: int) -> "Momentopname":
+        leeft = self.dood_tick is None
+        from evolution import Momentopname
+        return Momentopname(
+            levensduur=(self.dood_tick or tick) - self.geboorte_tick,
+            erts=-1.0,                    # wordt door de wereld ingevuld
+            nakomelingen=self.nakomelingen,
+            handels=self.handels,
+            feiten=self.feiten,
+            leeft=leeft,
+        )
+
+
+class Agent:
+    _ids = itertools.count(1)
+
+    def __init__(self, genoom: Genome, wereld, positie: tuple[int, int], energie: float = 70.0):
+        self.id = next(Agent._ids)
+        self.genoom = genoom
+        self.wereld = wereld
+        self.pos = positie
+        self.energie = energie
+        self.max_energie = 90.0 + 50.0 * (1.0 - genoom.waarde("stofwisseling"))  # geen gratis lunch
+        self.voedsel: int = 2
+        self.erts: int = 0
+        self.levend = True
+        self.vogelvrij = False
+        self.stat = AgentStatistiek(geboorte_tick=wereld.tick)
+        self.geheugen = SociaalGeheugen(vergeving=genoom.waarde("vergeving"),
+                                        retentie=genoom.waarde("retentie"))
+        self.beleid = Beleid(self)
+
+    @property
+    def bucket(self) -> tuple[int, int]:
+        return self.genoom.fenotype_bucket()
+
+    def voorraad(self, res: Res) -> int:
+        return getattr(self, RES_ATTR[res])
+
+    def ontvang(self, res: Res, n: int) -> None:
+        setattr(self, RES_ATTR[res], getattr(self, RES_ATTR[res]) + n)
+
+    def geef_af(self, res: Res, n: int) -> None:
+        setattr(self, RES_ATTR[res], getattr(self, RES_ATTR[res]) - n)
+
+    def neem_waar(self):
+        return self.wereld.bouw_perceptie(self)
+
+    def stap(self, rng: np.random.Generator) -> float:
+        """Eén besliscyclus. Geeft de metabole kost van deze tick terug."""
+        actie = self.beleid.kies_actie(self.neem_waar(), rng)
+        return self.wereld.voer_uit(actie, self, rng)
+
+    def eet_automatisch(self) -> None:
+        if self.energie < 0.6 * self.max_energie and self.voedsel > 0:
+            self.voedsel -= 1
+            self.energie = min(self.max_energie, self.energie + 11.0)
+
+    def onthoud(self, peer_id: int, peer_bucket, soort: str,
+                mijn_actie: str, diens_actie: str, valentie: float) -> None:
+        self.geheugen.registreer(Episode(self.wereld.tick, peer_id, peer_bucket,
+                                         soort, mijn_actie, diens_actie, valentie))
+
+    def overlijd(self) -> None:
+        self.levend = False
+        self.stat.dood_tick = self.wereld.tick
+```
+
+### 3.6 `ecosystem.py` — de gouverneur (demografische en institutionele remmen)
+
+```python
+# ── bestand: evolib/ecosystem.py ──────────────────────────────────────────
+"""Ecosysteemgouverneur: GEEN strategie, uitsluitend negatieve terugkoppelingen
+die de fysica van de simulatie vormgeven (cf. draagkracht, seizoenen, justitie)."""
+from __future__ import annotations
+from dataclasses import dataclass
+
+
+@dataclass
+class EcoInstellingen:
+    draagkracht: float = 1560.0     # som van alle broncapaciteiten
+    vruchtbaar_drempel: float = 0.45
+    conflict_cap: float = 0.60      # max. tolerant aandeel agressieve fenotypes
+    min_populatie: int = 14
+    min_clusters: int = 4
+
+
+class EcosysteemGouverneur:
+    def __init__(self, instellingen: EcoInstellingen | None = None):
+        self.inst = instellingen or EcoInstellingen()
+
+    def gezondheidsindex(self, totaal_bron: float) -> float:
+        return max(0.0, min(1.0, totaal_bron / self.inst.draagkracht))
+
+    def vruchtbaarheidsfactor(self, ehi: float) -> float:
+        """Demografische poort: bij lage EHI daalt de reproductiekans naar 0.15.
+        Voorkomt overshoot-and-collapse (demografische demping van de cyclus)."""
+        return max(0.15, min(1.0, ehi / self.inst.vruchtbaar_drempel))
+
+    def conflictkostenfactor(self, aandeel_agressie: float) -> float:
+        """Frequentie-afhankelijke selectie: massa-agressie wordt institutioneel duur
+        (alertheid, wraakcampagnes, verstoorde logistiek). Eq. een belasting op oorlog
+        evenredig aan haar prevalentie -> evenwicht blijft onder de dominatiedrempel."""
+        cap = self.inst.conflict_cap
+        overschot = max(0.0, aandeel_agressie - cap)
+        return 1.0 + 2.5 * overschot / max(1e-9, 1.0 - cap)
+
+    def redding_nodig(self, n_levend: int, n_clusters: int) -> bool:
+        return (n_levend < self.inst.min_populatie or n_clusters < self.inst.min_clusters)
+```
+
+### 3.7 `evolution.py` — selectie, SBX, zelfadaptieve mutatie, fitness-sharing, Hall-of-Fame
+
+```python
+# ── bestand: evolib/evolution.py ──────────────────────────────────────────
+from __future__ import annotations
+from dataclasses import dataclass
+
+import numpy as np
+
+from genome import N_GENES, Genome
+
+
+@dataclass
+class Momentopname:
+    levensduur: int
+    erts: float
+    nakomelingen: int
+    handels: int
+    feiten: int
+    leeft: bool
+
+
+@dataclass
+class FitnessGewichten:
+    levensduur: float = 1.0
+    rijkdom: float = 1.0
+    nakomelingen: float = 1.6
+    overleefd: float = 0.3
+    handel: float = 0.1
+    feiten_straf: float = 0.6
+
+
+class HalVanFaam:
+    """Genetische verzekeringspolis: elite-genomen van eerdere generaties."""
+
+    def __init__(self, capaciteit: int = 40):
+        self.capaciteit = capaciteit
+        self.lijst: list[tuple[float, Genome]] = []
+
+    def werk_bij(self, genoom: Genome, fitness: float) -> None:
+        self.lijst.append((fitness, genoom.kopie()))
+        self.lijst.sort(key=lambda t: t[0], reverse=True)
+        del self.lijst[self.capaciteit:]
+
+    def steekproef(self, rng) -> Genome:
+        _, g = self.lijst[int(rng.integers(len(self.lijst)))]
+        return g.kopie()
+
+
+class EvolutieMotor:
+    def __init__(self, gewichten: FitnessGewichten | None = None,
+                 elite: int = 2, toernooi_k: int = 3,
+                 delta_soort: float = 0.35, sigma_share: float = 0.30,
+                 max_clusteraandeel: float = 0.5, immigrant_quota: float = 0.03):
+        self.w = gewichten or FitnessGewichten()
+        self.elite = elite
+        self.k = toernooi_k
+        self.delta_soort = delta_soort
+        self.sigma_share = sigma_share
+        self.max_clusteraandeel = max_clusteraandeel
+        self.immigrant_quota = immigrant_quota
+        self.hof = HalVanFaam()
+
+    # ── fitness ──────────────────────────────────────────────────────────
+    def _ruwe_fitness(self, genomen: list[Genome], stats: list[Momentopname],
+                      tick_per_gen: int) -> np.ndarray:
+        w = self.w
+        f = np.array([
+            w.levensduur * (s.levensduur / max(1, tick_per_gen))
+            + w.rijkdom * (s.erts / 40.0)
+            + w.nakomelingen * s.nakomelingen
+            + w.overleefd * float(s.leeft)
+            + w.handel * min(s.handels, 20) / 20.0
+            - w.feiten_straf * min(s.feiten, 5) / 5.0
+            for s in stats
+        ])
+        return f
+
+    def _rang_normaliseer(self, f: np.ndarray) -> np.ndarray:
+        n = len(f)
+        orde = np.argsort(f)
+        rangen = np.empty(n)
+        rangen[orde] = np.arange(n) / max(1, n - 1)
+        return rangen
+
+    def _fitness_sharing(self, genomen: list[Genome], rang: np.ndarray) -> np.ndarray:
+        """Niching: F' = F / massa. Hoge dichtheid van gelijkbare genomen => korting.
+        Dit is de genetische arm van de anti-parasiet-verdediging."""
+        g = np.array([x.g for x in genomen])
+        d = np.linalg.norm(g[:, None, :] - g[None, :, :], axis=2)
+        massa = np.exp(-((d / self.sigma_share) ** 2)).sum(axis=1)
+        return rang / massa
+
+    # ── clustering (greedy leaders) ──────────────────────────────────────
+    def _clustertoewijzing(self, genomen: list[Genome]) -> list[int]:
+        leiders: list[Genome] = []
+        toewijzing: list[int] = []
+        for g in genomen:
+            for i, l in enumerate(leiders):
+                if g.afstand(l) < self.delta_soort:
+                    toewijzing.append(i)
+                    break
+            else:
+                leiders.append(g)
+                toewijzing.append(len(leiders) - 1)
+        return toewijzing
+
+    # ── selectie-operatoren ──────────────────────────────────────────────
+    def _toernooi(self, fitness: np.ndarray, rng) -> int:
+        idx = rng.integers(0, len(fitness), size=self.k)
+        return int(idx[np.argmax(fitness[idx])])
+
+    # ── hoofdfunctie ─────────────────────────────────────────────────────
+    def volgende_generatie(self, genomen: list[Genome], stats: list[Momentopname],
+                           rng, doelgrootte: int, tick_per_gen: int,
+                           redding: bool) -> list[Genome]:
+        n = len(genomen)
+        if n < 2:
+            return [Genome.willekeurig(rng) for _ in range(doelgrootte)]
+
+        ruw = self._ruwe_fitness(genomen, stats, tick_per_gen)
+        beste_i = int(np.argmax(ruw))
+        self.hof.werk_bij(genomen[beste_i], float(ruw[beste_i]))
+
+        rang = self._rang_normaliseer(ruw)
+        gedeeld = self._fitness_sharing(genomen, rang)
+        clusters = self._clustertoewijzing(genomen)
+        cap = max(2, int(self.max_clusteraandeel * doelgrootte))
+
+        kinderen: list[Genome] = [genomen[beste_i].kopie() for _ in range(min(self.elite, doelgrootte))]
+        telling: dict[int, int] = {}
+
+        def cluster_van_kind(kind: Genome) -> int:
+            afstanden = [kind.afstand(genomen[i]) for i in range(n) if clusters[i] == clusters[i]]
+            beste_c, beste_d = 0, float("inf")
+            gezien: set[int] = set()
+            for i, c in enumerate(clusters):
+                if c in gezien:
+                    continue
+                gezien.add(c)
+                d = kind.afstand(genomen[i])
+                if d < beste_d:
+                    beste_c, beste_d = c, d
+            return beste_c
+
+        def reserve_bron() -> Genome:
+            if redding and self.hof.lijst and rng.random() < 0.67:
+                return self.hof.steekproef(rng).muteer(rng)
+            return Genome.willekeurig(rng)
+
+        while len(kinderen) < doelgrootte:
+            r = rng.random()
+            if r < self.immigrant_quota:
+                kind = Genome.willekeurig(rng)                     # permanente immigratie
+            elif redding and rng.random() < 0.40:
+                kind = self.hof.steekproef(rng).muteer(rng)        # genetische redding (L5)
+            else:
+                p1 = genomen[self._toernooi(gedeeld, rng)]
+                p2 = genomen[self._toernooi(gedeeld, rng)]
+                if p1.afstand(p2) < 0.08:                          # inteelt-barrière
+                    kind = reserve_bron()
+                else:
+                    kind = Genome.sbx_kruising(p1, p2, rng).muteer(rng)
+            c_idx = cluster_van_kind(kind)
+            if telling.get(c_idx, 0) >= cap:                       # diversiteitsquotum (L3)
+                kind = reserve_bron()
+                c_idx = cluster_van_kind(kind)
+            telling[c_idx] = telling.get(c_idx, 0) + 1
+            kinderen.append(kind)
+        return kinderen[:doelgrootte]
+```
+
+### 3.8 `world.py` — fysica, notariaat, gevechten, schulden en reproductie
+
+```python
+# ── bestand: evolib/world.py ──────────────────────────────────────────────
+from __future__ import annotations
+import os
+from dataclasses import dataclass
+
+import numpy as np
+
+from agent import Agent
+from ecosystem import EcosysteemGouverneur, EcoInstellingen
+from evolution import EvolutieMotor, Momentopname
+from genome import GENE_NAMEN, Genome
+from policy import RES_ATTR
+from protocol import (Bericht, BerichtSigneerder, BerichtType, Bod, Partij,
+                      Res, Wijze, onderhandel)
+
+
+class ActieType:  # alias-import-beveiliging (gedefinieerd in protocol.py)
+    pass
+
+
+@dataclass
+class Bron:
+    res: Res
+    x: int
+    y: int
+    hoeveelheid: float
+    capaciteit: float = 12.0
+    groei: float = 0.06
+
+
+@dataclass
+class DoelView:
+    id: int
+    bucket: tuple[int, int]
+    vertrouwen: float
+    erts_geschat: float
+    energie_geschat: float
+    energie_fractie: float
+    vogelvrij: bool
+    agressie_schatting: float
+
+
+@dataclass
+class Perceptie:
+    wereld: "Wereld"
+    ik: Agent
+    bron_op_positie: Bron | None
+    buren: list[DoelView]
+
+    def beste_buurcel(self, waarde_fn) -> tuple[int, int] | None:
+        wx, wy = self.wereld.breedte, self.wereld.hoogte
+        x0, y0 = self.ik.pos
+        beste, beste_score = None, -1.0
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                bron = self.wereld.grid.get(((x0 + dx) % wx, (y0 + dy) % wy))
+                s = waarde_fn(bron.res, min(bron.hoeveelheid, 8.0)) / 45.0 \
+                    + 0.05 * float(self.wereld.rng.random()) if bron else \
+                    0.05 * float(self.wereld.rng.random())
+                if s > beste_score:
+                    beste, beste_score = (dx, dy), s
+        return beste
+
+
+@dataclass
+class Schuldbrief:
+    schuldenaar: int
+    eiser: int
+    partij: Partij
+    uiterlijk: int
+
+
+TICKS_PER_GENERATIE = 300
+POPULATIE_DOEL = 110
+GERUCHTRADIUS = 6
+
+
+class Wereld:
+    def __init__(self, breedte: int = 36, hoogte: int = 36,
+                 rng: np.random.Generator | None = None, n_bronnen: int = 130):
+        self.breedte, self.hoogte = breedte, hoogte
+        self.rng = rng or np.random.default_rng()
+        self.tick = 0
+        self.grid: dict[tuple[int, int], Bron] = {}
+        for _ in range(n_bronnen):
+            x, y = int(self.rng.integers(breedte)), int(self.rng.integers(hoogte))
+            res = Res.VOEDSEL if self.rng.random() < 0.6 else Res.ERTS
+            self.grid[(x, y)] = Bron(res=res, x=x, y=y,
+                                     hoeveelheid=float(self.rng.uniform(3, 9)))
+        self.agents: dict[int, Agent] = {}
+        self.signer = BerichtSigneerder(os.urandom(32))
+        self.berichten_log: list[Bericht] = []
+        self.schulden: dict[tuple[int, int], Schuldbrief] = {}
+        self.vogelvrij_set: set[int] = set()
+        self.gov = EcosysteemGouverneur(EcoInstellingen(
+            draagkracht=sum(b.capaciteit for b in self.grid.values())))
+        self.motor = EvolutieMotor()
+        self.generatie_archief: list[tuple[Genome, Momentopname]] = []
+        self._agres_aandeel = 0.0
+
+    # ── spawner & perceptie ──────────────────────────────────────────────
+    def spawn(self, genoom: Genome) -> Agent:
+        pos = (int(self.rng.integers(self.breedte)), int(self.rng.integers(self.hoogte)))
+        a = Agent(genoom, self, pos)
+        self.agents[a.id] = a
+        return a
+
+    def bouw_perceptie(self, ik: Agent) -> Perceptie:
+        wx, wy = self.breedte, self.hoogte
+        x0, y0 = ik.pos
+        buren: list[DoelView] = []
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for a in self.agents.values():
+                    if a.levend and a.id != ik.id and a.pos == ((x0 + dx) % wx, (y0 + dy) % wy):
+                        r = self.rng.uniform(0.75, 1.25)   # observatieruis
+                        buren.append(DoelView(
+                            id=a.id, bucket=a.bucket,
+                            vertrouwen=ik.geheugen.vertrouwen(self.tick, a.id, a.bucket),
+                            erts_geschat=a.erts * r,
+                            energie_geschat=a.energie * r,
+                            energie_fractie=a.energie / a.max_energie,
+                            vogelvrij=a.vogelvrij,
+                            agressie_schatting=min(1.0, a.genoom.waarde("agressie") * r)))
+        return Perceptie(self, ik, self.grid.get(tuple(ik.pos)), buren)
+
+    def tegenpartij_view(self, mij_id: int, ander_id: int) -> "object":
+        mij, ander = self.agents[mij_id], self.agents[ander_id]
+        r = self.rng.uniform(0.8, 1.2)
+        from protocol import TegenpartijView
+        return TegenpartijView(
+            id=ander.id, bucket=ander.bucket,
+            vertrouwen=mij.geheugen.vertrouwen(self.tick, ander.id, ander.bucket),
+            erts_geschat=ander.erts * r,
+            energie_fractie=ander.energie / ander.max_energie,
+            vogelvrij=ander.vogelvrij)
+
+    # ── notariaat ────────────────────────────────────────────────────────
+    def registreer_bericht(self, zender: int, ontvanger: int, type: BerichtType,
+                           bod: Bod | None, wijze: Wijze | None, ronde: int) -> Bericht:
+        b = Bericht(zender, ontvanger, type, bod, wijze, ronde,
+                    seq=self.signer.volgende_seq(zender, ontvanger))
+        b = Bericht(**{**b.__dict__, "handtekening": self.signer.signeer(b)})
+        if not self.signer.verifieer(b, b.seq):        # zou nooit mogen gebeuren;
+            raise ValueError("berichtintegriteit geschonden")   # bewuste hard fail
+        self.berichten_log.append(b)
+        return b
+
+    # ── afwikkeling ──────────────────────────────────────────────────────
+    def _dra_over(self, gever: Agent, ontvanger: Agent, p: Partij, courtage: bool) -> None:
+        n = p.hoeveelheid
+        fee = n // 20 if courtage else 0
+        gever.geef_af(p.res, n)
+        ontvanger.ontvang(p.res, n - fee)              # de wereld eet de courtage op
+
+    def wikkel_af(self, aanbieder: Agent, antwoorder: Agent, bod: Bod, wijze: Wijze):
+        geeft, vraagt = bod.geeft, bod.vraagt
+        if aanbieder.voorraad(geeft.res) < geeft.hoeveelheid \
+                or antwoorder.voorraad(vraagt.res) < vraagt.hoeveelheid:
+            return None
+        if wijze is Wijze.ESCROW:
+            self._dra_over(aanbieder, antwoorder, geeft, courtage=True)
+            self._dra_over(antwoorder, aanbieder, vraagt, courtage=True)
+            aanbieder.onthoud(antwoorder.id, antwoorder.bucket, "handel", "lever", "lever", +1.0)
+            antwoorder.onthoud(aanbieder.id, aanbieder.bucket, "handel", "lever", "lever", +1.0)
+            aanbieder.stat.handels += 1
+            antwoorder.stat.handels += 1
+            return {"status": "escrow"}
+        # CREDIT: beide verplichtingen staan gelijktijdig ter nakoming
+        a_ok = aanbieder.voorraad(geeft.res) >= geeft.hoeveelheid and aanbieder.beleid.kom_na(geeft)
+        b_ok = antwoorder.voorraad(vraagt.res) >= vraagt.hoeveelheid and antwoorder.beleid.kom_na(vraagt)
+        if a_ok and b_ok:
+            self._dra_over(aanbieder, antwoorder, geeft, courtage=False)
+            self._dra_over(antwoorder, aanbieder, vraagt, courtage=False)
+            aanbieder.onthoud(antwoorder.id, antwoorder.bucket, "handel", "lever", "lever", +1.0)
+            antwoorder.onthoud(aanbieder.id, aanbieder.bucket, "handel", "lever", "lever", +1.0)
+            aanbieder.stat.handels += 1
+            antwoorder.stat.handels += 1
+            return {"status": "credit-ok"}
+        if a_ok and not b_ok:
+            self._dra_over(aanbieder, antwoorder, geeft, courtage=False)
+            self.schulden[(antwoorder.id, aanbieder.id)] = Schuldbrief(
+                antwoorder.id, aanbieder.id, vraagt, self.tick + 12)
+            self.markeer_feit(antwoorder, aanbieber := aanbieder)
+            return {"status": "credit-schuld"}
+        if b_ok and not a_ok:
+            self._dra_over(antwoorder, aanbieder, vraagt, courtage=False)
+            self.schulden[(aanbieder.id, antwoorder.id)] = Schuldbrief(
+                aanbieder.id, antwoorder.id, geeft, self.tick + 12)
+            self.markeer_feit(aanbieder, antwoorder)
+            return {"status": "credit-schuld"}
+        aanbieder.onthoud(antwoorder.id, antwoorder.bucket, "handel", "trek-terug", "trek-terug", -0.3)
+        antwoorder.onthoud(aanbieder.id, aanbieder.bucket, "handel", "trek-terug", "trek-terug", -0.3)
+        return {"status": "geannuleerd"}
+
+    # ── justitie & geruchten ─────────────────────────────────────────────
+    def markeer_feit(self, dader: Agent, slachtoffer: Agent) -> None:
+        dader.stat.feiten += 1
+        slachtoffer.onthoud(dader.id, dader.bucket, "feit", "getuige", "wanprestatie", -1.0)
+        wx, wy = self.breedte, self.hoogte
+        for g in self.agents.values():
+            if not g.levend or g.id in (dader.id, slachtoffer.id):
+                continue
+            dx = abs(g.pos[0] - dader.pos[0]); dx = min(dx, wx - dx)
+            dy = abs(g.pos[1] - dader.pos[1]); dy = min(dy, wy - dy)
+            if max(dx, dy) <= GERUCHTRADIUS:           # ruimtelijk begrensde roddelpropagatie
+                g.onthoud(dader.id, dader.bucket, "gerucht", "getuige", "wanprestatie", -0.7)
+        if dader.stat.feiten >= 3:
+            dader.vogelvrij = True
+            self.vogelvrij_set.add(dader.id)
+
+    def verwerk_schulden(self) -> None:
+        vervallen = [k for k, s in self.schulden.items() if self.tick >= s.uiterlijk]
+        for sleutel in vervallen:
+            s = self.schulden.pop(sleutel)
+            schuldenaar = self.agents.get(s.schuldenaar)
+            eiser = self.agents.get(s.eiser)
+            if schuldenaar is None or eiser is None or not schuldenaar.levend:
+                continue
+            if schuldenaar.voorraad(s.partij.res) >= s.partij.hoeveelheid \
+                    and schuldenaar.beleid.kom_na(s.partij):
+                self._dra_over(schuldenaar, eiser, s.partij, courtage=False)
+                eiser.onthoud(schuldenaar.id, schuldenaar.bucket, "schulden",
+                              "incasso", "betaald", +0.8)
+            else:
+                self.markeer_feit(schuldenaar, eiser)
+
+    # ── actie-uitvoering ─────────────────────────────────────────────────
+    def conflictkostenfactor(self) -> float:
+        return self.gov.conflictkostenfactor(self._agres_aandeel)
+
+    def voer_uit(self, actie, a: Agent, rng: np.random.Generator) -> float:
+        kost = 0.35 + 0.75 * (1.0 - a.genoom.waarde("stofwisseling"))
+        wx, wy = self.breedte, self.hoogte
+        if actie.type is ActieType.RUST:
+            kost *= 0.5
+            a.energie = min(a.max_energie, a.energie + 1.5)
+        elif actie.type is ActieType.BEWEEG:
+            dx, dy = actie.richting
+            a.pos = ((a.pos[0] + dx) % wx, (a.pos[1] + dy) % wy)
+            kost += 0.35
+        elif actie.type is ActieType.OOGST:
+            bron = self.grid.get(tuple(a.pos))
+            if bron is not None and bron.hoeveelheid >= 1.0:
+                n = min(int(bron.hoeveelheid), 8)
+                bron.hoeveelheid -= n
+                a.ontvang(bron.res, n)
+            kost += 0.2
+        elif actie.type is ActieType.AANVAL:
+            doel = self.agents.get(actie.doel_id)
+            if doel is not None and doel.levend:
+                self._aanval(a, doel, rng)
+            kost += 1.0
+        elif actie.type is ActieType.HANDEL:
+            doel = self.agents.get(actie.doel_id)
+            if doel is not None and doel.levend:
+                onderhandel(self, a, doel, rng)
+            kost += 0.1
+        return kost
+
+    def _aanval(self, aanvaller: Agent, doel: Agent, rng: np.random.Generator) -> None:
+        ka = 6.0 * (0.4 + aanvaller.genoom.waarde("agressie")) * \
+            (0.4 + 0.6 * aanvaller.energie / aanvaller.max_energie)
+        kd = 5.0 * (0.4 + doel.genoom.waarde("agressie")) * \
+            (0.4 + 0.6 * doel.energie / doel.max_energie)
+        mult = self.conflictkostenfactor()
+        if ka > kd * self.rng.uniform(0.8, 1.2):
+            roof_erts = min(doel.erts, int(np.ceil(0.35 * doel.erts)))
+            roof_voedsel = min(doel.voedsel // 2, 4)
+            doel.geef_af(Res.ERTS, roof_erts)
+            doel.geef_af(Res.VOEDSEL, roof_voedsel)
+            aanvaller.ontvang(Res.ERTS, roof_erts)
+            aanvaller.ontvang(Res.VOEDSEL, roof_voedsel)
+            if doel.vogelvrij:                                  # premie: zelffinancierend (L4)
+                premie = min(doel.erts, 4)
+                doel.geef_af(Res.ERTS, premie)
+                aanvaller.ontvang(Res.ERTS, premie)
+            doel.energie -= max(4.0, 10.0 + 8.0 * (ka - kd))
+            aanvaller.stat.kills += 0
+            doel.onthoud(aanvaller.id, aanvaller.bucket, "overval", "verdedig", "beroofd", -1.0)
+            aanvaller.onthoud(doel.id, doel.bucket, "overval", "roof", "verloor", +0.6)
+        else:
+            aanvaller.energie -= 5.0 * mult
+            doel.energie -= 2.0
+            doel.onthoud(aanvaller.id, aanvaller.bucket, "overval", "verdedig", "sloeg-af", -0.5)
+
+    # ── hoofdtik ─────────────────────────────────────────────────────────
+    def totale_bron(self) -> float:
+        return sum(b.hoeveelheid for b in self.grid.values())
+
+    def stap(self) -> None:
+        levend = [a for a in self.agents.values() if a.levend]
+        if levend:
+            self._agres_aandeel = float(np.mean(
+                [a.genoom.waarde("agressie") for a in levend]))
+        volgorde = self.rng.permutation(len(levend))
+        for i in volgorde:
+            a = levend[i]
+            if not a.levend:
+                continue
+            kost = a.stap(self.rng)
+            a.energie -= kost
+        # bronlogistiek: dR = r·R·(1 − R/K)
+        for bron in self.grid.values():
+            bron.hoeveelheid += bron.groei * bron.hoeveelheid * \
+                (1.0 - bron.hoeveelheid / bron.capaciteit)
+        # metabolisme, auto-eten, dood
+        voor_dood = list(self.agents.values())
+        for a in voor_dood:
+            if not a.levend:
+                continue
+            a.eet_automatisch()
+            if a.energie <= 0.0:
+                a.overlijd()
+                if tuple(a.pos) not in self.grid:               # recycling: kadaver -> erts-node
+                    self.grid[tuple(a.pos)] = Bron(res=Res.ERTS, x=a.pos[0], y=a.pos[1],
+                                                   hoeveelheid=float(min(6, a.erts + 1)))
+                self.generatie_archief.append(
+                    (a.genoom, self._momentopname(a)))
+        self.verwerk_schulden()
+        self.tick += 1
+        if self.tick % TICKS_PER_GENERATIE == 0:
+            self._reproduceer()
+
+    def _momentopname(self, a: Agent) -> Momentopname:
+        m = a.stat.momentopname(self.tick)
+        m.erts = float(a.erts)
+        return m
+
+    # ── generatiewissel ──────────────────────────────────────────────────
+    def _reproduceer(self) -> None:
+        levend = [a for a in self.agents.values() if a.levend]
+        for a in levend:                                    # iedereen archiveert
+            self.generatie_archief.append((a.genoom, self._momentopname(a)))
+
+        genomen = [g for g, _ in self.generatie_archief]
+        stats = [s for _, s in self.generatie_archief]
+        clusters = len(set(self.motor._clustertoewijzing(genomen))) if len(genomen) > 1 else len(genomen)
+        ehi = self.gov.gezondheidsindex(self.totale_bron())
+        redding = self.gov.redding_nodig(len(levend), clusters)
+
+        # vruchtbaarheidspoort: wie mag ouder worden hangt af van ecosysteemgezondheid
+        vrucht = self.gov.vruchtbaarheidsfactor(ehi)
+        ouders = [a for a in levend if a.energie >= 45.0 and self.rng.random() < vrucht]
+        if len(ouders) < 2:
+            redding = True
+
+        kinderen_genomen = self.motor.volgende_generatie(
+            genomen, stats, self.rng, POPULATIE_DOEL, TICKS_PER_GENERATIE, redding)
+
+        # generatiewissel: hele cohort met pensioen, wereld (bronnen!) blijft bestaan
+        for a in self.agents.values():
+            if a.levend:
+                a.overlijd()
+        self.agents.clear()
+        self.schulden.clear()
+        self.vogelvrij_set.clear()
+        self.generatie_archief.clear()
+        for g in kinderen_genomen:
+            self.spawn(g)
+
+    # ── diagnostiek ──────────────────────────────────────────────────────
+    def diagnose(self) -> str:
+        levend = [a for a in self.agents.values() if a.levend]
+        if not levend:
+            return f"t={self.tick:5d}  EXTINCT"
+        gem = {n: float(np.mean([a.genoom.waarde(n) for a in levend])) for n in GENE_NAMEN}
+        clusters = len(set(self.motor._clustertoewijzing([a.genoom for a in levend])))
+        return (f"t={self.tick:5d}  pop={len(levend):3d}  EHI={self.gov.gezondheidsindex(self.totale_bron()):.2f} "
+                f"clusters={clusters}  agres={gem['agressie']:.2f} coop={gem['cooperatie']:.2f} "
+                f"vogelvrij={len(self.vogelvrij_set)}  schulden={len(self.schulden)}")
+```
+
+### 3.9 `simulation.py` — bekabeling en demonstratielus
+
+```python
+# ── bestand: evolib/simulation.py ─────────────────────────────────────────
+import numpy as np
+
+from genome import Genome
+from world import Wereld
+
+
+def main(generaties: int = 25, seed: int = 42) -> None:
+    rng = np.random.default_rng(seed)
+    wereld = Wereld(rng=rng)
+    for _ in range(110):
+        wereld.spawn(Genome.willekeurig(rng))
+
+    for generatie in range(generaties):
+        for _ in range(300):                 # TICKS_PER_GENERATIE
+            wereld.stap()
+        print(f"gen {generatie:02d} | {wereld.diagnose()}")
+
+    print("\nTop-3 Hall-of-Fame genomen:")
+    for fit, g in wereld.motor.hof.lijst[:3]:
+        print(f"  fitness={fit:.3f}  {g}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+*(Enige importhygiëne: `protocol.py` definieert `ActieType`/`Actie`; voeg daar toe:*
+
+```python
+class ActieType(Enum):
+    BEWEEG = auto(); OOGST = auto(); AANVAL = auto(); HANDEL = auto(); RUST = auto()
+
+
+@dataclass(frozen=True)
+class Actie:
+    type: ActieType
+    doel_id: int | None = None
+    bron_xy: tuple[int, int] | None = None
+    richting: tuple[int, int] | None = None
+```
+
+*en verwijder de lege alias-klasse in `world.py`. Verder is `pip install numpy` de enige dependency; `python simulation.py` draait de lus end-to-end.)*
+
+---
+
+## Deel 4 — Edge case-analyse: de parasitaire collaps en hoe de architectuur haar afdwingt
+
+**Het faalpad, wiskundig.** Bronherstel is logistisch: `Ṙ = rR(1−R/K)`, maximaal duurzame oogst `rK/4`. Zolang de totale consumptie `C(t) > rK/4` blijft, is `R → 0` onafwendbaar. Parasitisme heeft een payoff-matrix van het Prisoner's-Dilemma-type: Roof `P` > Wederzijdse handel `R` > Eenzaam produceren `S` > Bestolen worden `X`. Zolang coöperateurs in de buurt zijn, stijgt p(parasiet); sterven die uit, dan daalt de buit naar nul en sterft de parasiet-subpopulatie *mee* — maar dan is R reeds uitgeput en volgt **totale extinctie**: de evolutionair slechtste uitkomst, want er is niemand meer over die kan leren.
+
+**Vijf verdedigingslinies, elk mechanisch verankerd:**
+
+| # | Faalmodus | Mechanisme | Locatie in code |
+|---|---|---|---|
+| L1 | Overexploitatie van bronnen | Logistieke groei + `honger_boost` in de waarderingsfunctie: bij schaarste wordt voedsel relatief zó waard dat ruilen (welvaart-vermeerderend) het wint van roven (nulsom minus gevechtskosten) | `world.stap()` bronupdate; `policy.waarde()` |
+| L2 | Demografische overshoot-and-collapse | Vruchtbaarheidspoort: reproductiekans ∝ `clip(EHI/θ, 0.15, 1)` — discrete Lotka-Volterra-demping; consumentenpopulatie blijft onder draagkracht | `EcosystemGouverneur.vruchtbaarheidsfactor`, `world._reproduceer` |
+| L3 | Genotype-monopolie van parasieten | (a) frequentie-afhankelijke conflictkosten: `mult = 1+2.5·max(0, deel_agressie−0.6)/(0.4)` belast oorlog evenredig aan haar prevalentie; (b) kernel fitness-sharing `F′=F/Σexp(−(d/σ)²)`; (c) clustercap van 50% in de nakomelingenproductie | `conflictkostenfactor`, `EvolutieMotor._fitness_sharing`, `_clustertoewijzing`+cap |
+| L4 | Fraude-eskalatie (free-riding op vertrouwen) | Ostracisme (harde drempel in `u_handel`), escrow-segmentatie (wantrouwende agenten betalen courtage en lopen géén risico → bedriegers handelen alleen met bedriegers, hun surplus → 0), geruchtenpropagatie (radius 6), en **zelffinancierende premiejacht**: de jager betaalt zichzelf uit de confiscatie — daarmee is het second-order free-riderprobleem (wie betaalt de handhaver?) structureel ontwepen | `policy.u_handel/u_aanval`, `Wijze.ESCROW`, `world.markeer_feit`, `world._aanval` |
+| L5 | Instorting ondanks alles (extinctie-risico) | Genetische verzekering: Hall-of-Fame + reddingsmix (40% HoF-mutanten) + permanent immigrantenquota (3%) + inteeltbarrière (δ=0.08). Na een crash worden coöperatieve strategieën *herontdekt* in plaats van definitief verloren | `HalVanFaam`, `EvolutieMotor.volgende_generatie(redding=True)` |
+
+**Wat bewust níét wordt opgelost.** Restoscillaties (predator-prooi-limitcyclussen tussen agressieve en coöperatieve fenotypes) blijven mogelijk — L2 en L3 dempen de amplitude maar elimineren de cyclus niet, en dat is deels wenselijk: cyclische selectiedruk houdt de populatie adaptief. De gouverneurparameters (`vruchtbaar_drempel`, `conflict_cap`, `min_clusters`) zijn de gevoelige knoppen; ik raad aan ze mee te nemen in een sensitiviteitsanalyse per experiment.
+
+---
+
+## Slotopmerking
+
+De architectuur haalt drie eigenschappen die zelden samen komen: **alle adaptieve vrijheid zit in het genoom** (evolutie selecteert dus op echt gedrag), **alle staat is begrensd en gecomprimeerd** (O(1) per peer, constante arche type-ruimte), en **bedrog is endogeen** — het systeem detecteert fraude niet via een magische detector, maar omdat de wereld als notaris feiten registreert en de *economie* van reputatie, premies en escrow-courtage bedrog onrendabel maakt zodra coöperatie kritische massa bereikt. Precies die koppeling tussen informatiefluïden (geheugen/geruchten) en prikkels (payoffs) is waar de interessante wetenschap van deze simulatie zal plaatsvinden.

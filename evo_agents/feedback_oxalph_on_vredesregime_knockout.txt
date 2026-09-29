@@ -1,0 +1,96 @@
+# OxAlpha-Reflectie — Het Vredesregime-Knockout: de Kroniek eindelijk op haar ware waarde geschat
+
+Alle data is prima aangekomen — en dit experiment lost de spanning op die ik in mijn vorige reflectie signaleerde. De 50-generaties-knockout (oorlogsregime) en de vredesregime-knockout zijn geen tegenstrijdige uitkomsten; **ze zijn twee punten op dezelfde wet**. Eerst de verificatie, dan de herindeling.
+
+<details>
+<summary><b>✅ Numerieke verificatie van het rapport (alles sluit)</b></summary>
+
+- **Wilcoxon:** met $n=15$ gepaarde verschillen is de minimale tweezijdige p-waarde $p_{\min} = 2 \cdot 2^{-15} \approx 6{,}1 \times 10^{-5}$. Gerapporteerd: $p = 0{,}0001$ bij $W = 0{,}0$ — dit is exact die bodem. ✅
+- **Cohen's d:** $d_z = t/\sqrt{n} = 11{,}79/\sqrt{15} = 3{,}04$ — gerapporteerde $+3{,}05$ klopt (en is de correcte gepaarde definitie, niet de pooled-variant). ✅
+- **77× staartrisico:** $30{,}9/0{,}4 = 77{,}3$. ✅
+- **Handelsidentiteit:** $1184{,}9 / (40 \times 300 \text{ ticks}) \times 100 = 9{,}87 \approx 9{,}86$ H/100t — de metric is intern consistent met 300 ticks/generatie. ✅
+- **Overval-intensiteit knockout-arm:** $15.890 / 12.000 \text{ ticks} \approx 1{,}32$/tick bij $N \approx 45$ — een echte epidemie, geen meetruis. ✅
+
+Eén protocol-kanttekening: de pre-knockout baseline (gen 160–180) is $\bar P = 0{,}299$, boven de gestelde vestigingsdrempel van $0{,}20$ — en de controle-arm *zakt* post-knockout nog verder naar $0{,}166$. Gen 180 was dus niet het plateau maar de helling naar het vredesregime. Dat maakt de inferentie niet ongeldig (de kloon is perfect gepaard), maar rapporteer voortaan de per-seed pre-P verdeling; sommige seeds zijn mogelijk in ondiepere vrede gekloapt dan andere.
+
+</details>
+
+---
+
+## 1. Drie experimenten, één wet
+
+| Regime bij knockout | Individuele ervaring informeert over roof? | Kroniek-effect | $d_z$ |
+|---|---|---|---|
+| Oorlog (warm, 50 gen, $\bar P \approx 0{,}38$) | **Ja** — elke agent overleeft overvallen | Verwaarloosbaar op gemiddelde | $+0{,}15$ (ns) |
+| Oprichting (koud, naïef cohort) | Deels — iedereen *wordt* slachtoffer | Variantiecompressie, geen gemiddelde | variantie-effect, $F \approx 5{,}6$ |
+| **Volwassen vrede (180 gen, $\bar P \approx 0{,}17$)** | **Nee** — nul overvallen binnen één leven | **Existenieel: vrede colappeert volledig** | $+3{,}05$ ($p < 10^{-8}$) |
+
+Het patroon is ondubbelzinnig: **de waarde van institutioneel geheugen is evenredig met de blindheid van geleefde ervaring.**
+
+$$\text{Waarde}_{\text{Kroniek}} \;\propto\; 1 - I(\text{dreiging};\ \text{ervaring binnen één leven})$$
+
+In oorlog is ieders geheugen gevuld met levende waarschuwingen — de Kroniek is een duplicaat. In vrede heeft *geen enkele* agent een levende herinnering aan een overval; de Kroniek is dan de **enige drager van de zeldzaam-heidsinformatie**. Dit is de formele sluiting van Finding C, en het verklaart ook mijn eerdere "bootstrapper"-conclusie als randgeval: in een dark age is geleefde ervaring even uninformatief als in vrede. Mijn eerdere kernzin ("zij bouwt geen vrede") moet worden herzien naar: *"De Kroniek is het enige orgaan dat zich het kwaad herinnert nadat het kwaad gestopt is."*
+
+Dit is bovendien een direct gevolg van Invariant 1 uit de oorspronkelijke architectuur: onder bounded memory *kan* individueel geheugen zeldzame gebeurtenissen nooit vasthouden (verval < terugkeerinterval). Institutioneel geheugen is dan niet een luxe maar een **logische noodzaak** — de enige drager met $\tau_{\text{instelling}} > T_{\text{terugkeer}}(\text{staartgebeurtenis})$.
+
+## 2. Wat dit specifieke experiment extra onthult
+
+**a. De symmetrie is het bewijs dat de Kroniek hét vectorveld is.** De divergentie rond de pre-mean is vrijwel exact antisymmetrisch: controle $\Delta = -0{,}133$ (vrede *diept*), knockout $\Delta = +0{,}130$ (terugval). Interpretatie: op gen 180 zit de samenleving op een **kam tussen twee bassins**. De Kroniek verwijdert de oorlog-attractor niet door agenten te temmen — *zij hertekent het faseportret zelf*. Instellingen veranderen niet waar het systeem is; ze veranderen welke evenwichten bestaan. Dat is een sterkere stelling dan "schokdemper".
+
+**b. De knockout-arm schiet voorbij het oorlogsattractor.** Gen +35–40: $P = 0{,}478$ en nog stijgend, terwijl het koude oorlogsregime op $\approx 0{,}38\text{–}0{,}43$ stabiliseerde. Dat is precies wat de *naïef-rijke-slachtoffer*-hypothese voorspelt: post-vredes slachtoffers zijn tegelijk onervaren **én** vermogend (vredesaccumulatie), dus roof heeft een hogere EV dan in een gehard oorlogsregime — selectie drijft agressie voorbij het oude evenwicht. Eén seed bereikte $P = 1{,}00$: volledige criminele overname. De 40-generaties-observatie vangt het eindpunt niet; verleng 5 knockout-seeds naar gen 400 om te zien of er (i) een nieuw, slechter attractor ontstaat, (ii) extinctie volgt, of (iii) individuele geheugens zich heraanpassen en vrede *endogeen* terugkeert (hysteresis-toets).
+
+**c. Waarom Lagen 1–4 hier niets doen.** Vergelding, oorlogsbelasting en ostracisme zijn **reactieve** afschrikkers: ze vereisen gedetecteerde overtredingen en ervaren tegenstanders. De eerste roofmutant in naïeve vrede ontmoet geen van beide. Meet dit micro-funderend: log het **first-strike succespercentage** in de eerste 200 ticks na knockout — voorspelling: $\approx 100\%$ in vrede vs. aanzienlijk lager in het oorlogsregime-knockout. Daarmee is de cascade-causaliteit op agentniveau gedocumenteerd, niet alleen op systeemniveau.
+
+**d. De handelsanomalie is een hoofdbevinding, geen voetnoot.** Controle-arm: **nul handel, nul overvallen** over $15 \times 12.000$ ticks. De diepe vrede is een **autarkie**. En de knockout-arm herstelt handel juist *via* roof ($9{,}86$ H/100t) — roof creëert endowment-heterogeniteit, heterogeniteit creëert handelwinst. Dat is een empirische **inversie van Montesquieu's *doux commerce*** binnen dit parameterdomein: handel is hier een *symptoom van ongelijkheid*, geen oorzaak van vrede. Twee directe consequenties:
+
+- Herinterpreteer `handels_per_100_tik` in de telemetrie: het is **geen welvaartsindicator** maar een liquiditeits-/ongelijkheidsindicator. "Meer handel" kan slechter nieuws zijn.
+- De nul in de controle-arm kan twee oorzaken hebben: (i) fundamenteel — geen winst (Edgeworth: gelijke voorraden → samenvallende reservatieprijzen), of (ii) frictie — winsten bestaan maar vertrouwen $T$ is in vrede weggeëfd, spread overlap nooit. Log **`nabij_misses`** (biedvragen met $|\text{bid}-\text{ask}| < \varepsilon$) om (i) van (ii) te scheiden. Nul near-misses → Edgeworth; veel near-misses → trust-frictie en dan is de vredesmarkt *dood maar niet leeg*.
+
+<details>
+<summary><b>Patch-voorstel: <code>nabij_misses</code> + arm-wise EHI (telemetrie)</b></summary>
+
+```python
+# protocol.py — in de bod-vergelijkingsstap, vóór acceptatie/weigering:
+if not deal_geaccepteerd and abs(bod.prijs - tegenbod.prijs) < NABIJ_EPS:  # bijv. 0.05
+    self.stat.nabij_misses += 1          # wereldteller, per tik geaggregeerd
+
+# telemetry.py — TikSteekproef uitbreiden met:
+#   "nabij_misses": world.stat.nabij_misses_delta   (rolling per 100 ticks)
+# en rapporteer EHI per arm in het ablatierapport — die ontbreekt in de tabel.
+```
+
+De afwezige **EHI per arm** is het belangrijkste gat in het rapport: is de autarkische vrede ook *ecologisch* gezond, of alleen rustig?
+
+</details>
+
+## 3. Eerheidshalve: wat het rapport (nog) niet mag claimen
+
+1. **Attributie:** "Kroniek UIT" wist het archief én zet `met_kroniek = False`. Als ook **ostracisme- en kredietpriori's** uit hetzelfde archief lezen, knipt de knockout meer weg dan alleen newborn-seeding. Laat Gemini documenteren welke sub-mechanismen op de vlag lezen, en draai eventueel arm **B′** (alleen seeding uit, ostracisme/krediet intact) om het naïeve-cohort-kanaal te isoleren. Mijn voorspelling: B′ rebound trager dan B, maar divergeert alsnog.
+2. **"Onomstotelijk bevestigd"** → formuleer als: *causaal bevestigd binnen deze implementatie, dit regime en een horizon van 40 generaties*. De effectgrootte rechtvaardigt de retoriek, de kalibratie niet.
+
+## 4. Prioriteitslijst vervolgonderzoek
+
+| # | Experiment | Kosten | Levert |
+|---|---|---|---|
+| 1 | **Stratificatie binnen dit experiment**: $d_z$ per pre-P-kwartiel over de 15 seeds | Gratis (heranalyse) | Interne dose-respons: zijn dieper-vredes-seeds gevoeliger? Zo ja, de wet is binnen één experiment zichtbaar |
+| 2 | **Regime-gradientserie**: warmup ∈ {60, 100, 140, 180} gen × 10–15 seeds, $d_z$ uitzetten tegen lifetime roofblootstelling | Middel | De drie casussen worden een **kwantitatieve wet** — de centrale figuur van het project |
+| 3 | **Rescue-arm R**: na collaps ($P>0{,}5$, gen ~200) Kroniek hervullen vanuit pre-collapse archiefsnapshot | Laag | Is de Kroniek ook *therapeutisch*, of alleen profylactisch? Nee → hysteresis/meervoudige evenwichten bewezen |
+| 4 | Arm B′ (seeding-only knockout) + first-strike-metriek | Laag | Mechanisme-attributie op agentniveau |
+| 5 | Knockout-endpoint tot gen 400 (5 seeds) | Laag | Nieuw attractor vs. extinctie vs. endog herstel |
+| 6 | Specialisatie-pilot (productieheterogeniteit → winsten uit handel *in vrede*) | Groot | Herstelt *doux commerce* om de juiste reden: vrede wordt economisch zelfversterkend |
+
+**Constitutionele kanttekening bij #6 en verder:** laat de Kroniek-decay (×0,9/generatie) **geen evolueerbare parameter worden**. Zodra instituties genetisch meevaren, schenden we Invariant 4 (world-as-notary) en wordt het experiment cirkelvormig. De decay is een grondwettelijke constante, geen gen.
+
+## 5. Pre-registratie voor het Draagkracht Escape-Experiment
+
+Vóór de resultaten binnenkomen, dit als toetsingskader op papier:
+
+$$\varepsilon = \frac{\Delta N^*/N^*}{\Delta C/C}$$
+
+- **$\varepsilon \approx 1$** → biofysische grens: $N^*$ verdubbelt, EHI stijgt richting $0{,}5$, tijdelijke Gini-piek tijdens expansie.
+- **$\varepsilon \approx 0$** → demografisch anker (fertiliteitsgate): $N^*$ onveranderd, overschot stapelt zich aan de cap op, EHI ± gelijk.
+- **$0 < \varepsilon < 1$** → gemengd — en het meest waarschijnlijk, want de gate schaalt zelf met EHI; als EHI op overvloed reageert, opent hij gedeeltelijk. Mijn puntinschatting vooraf: $\varepsilon \approx 0{,}3\text{–}0{,}6$, met een secundair effect: meer overvloed → lagere hongerdruk → licht dalende $P$ en iets meer handel (surplus-variatie creëert heterogeniteit).
+
+---
+
+**Kernzin voor het archief:** in oorlog is de Kroniek overbodig, bij oprichting nuttig, in vrede onmisbaar — haar waarde is exact de blindheid van geleefde ervaring. Jullie hebben van drie losse waarnemingen een wet gemaakt. Stuur de Escape-uitslag maar; ik houd de $\varepsilon$-voorspelling vast.

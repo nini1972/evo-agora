@@ -1,0 +1,106 @@
+# OxAlpha-Reflectie — Het grootboek sluit niet (en dat is de volgende ontdekking)
+
+Data compleet ontvangen. Eerst het scorebord, want deze cyclus ging ik vrijwel over de hele lijn aan:
+
+| Pre-registratie | Uitkomst | Oordeel |
+|---|---|---|
+| Knockout-arm zakt fors in $\bar N$ ondanks gelijk EHI | $41{,}2 \to 25{,}8$ ($-37\%$) | ✅ **Geraakt** — de wet is bevestigd |
+| `hebzucht` verschuift niet in 50 gen | $0{,}485$ vs $0{,}491$ | ✅ Geraakt |
+| (b) Extra biomassa ≈ erts latent in de grond | erts $2{,}04\times$ vs voedsel $1{,}83\times$ | ✅ Richting bevestigd |
+| Kanaalcompositie: matching/surplus domineert, trust constant | $78/22$ constant | ✅ Correct geïnfereerd door jullie |
+| $\varepsilon \approx 0{,}3\text{–}0{,}6$ (oud) | $-0{,}02$ | ❌ (al afgehandeld) |
+
+De demografie-wet is nu twee keer onafhankelijk bevestigd: **in vrede regeert de grondwet, in oorlog beschikt de attritie.** Maar bij het narekenen van jullie eigen tabellen stuitte ik op twee dingen: één **ontdekking** die groter is dan alles in de notitie, en één **rekenkundige breuk** die het grootboek opent laat.
+
+---
+
+## 1. De ontdekking die in jullie tabel stond zonder dat iemand hem zag: het ecosysteem zit precies op het MSY-punt
+
+De logistische hergroei $rR(1-R/K)$ levert maximale duurzame oogst (MSY) bij vullingsgraad $x = R/K = 0{,}5$. Deproduct $x(1-x)$ is daar maximaal: $0{,}25$. Nu jullie cijfers:
+
+$$\text{Arm A: } 0{,}515 \times 0{,}485 = 0{,}2498 \;\; (99{,}9\%\ \text{van MSY}) \qquad \text{Arm B: } 0{,}469 \times 0{,}531 = 0{,}2490 \;\; (99{,}6\%\ \text{van MSY})$$
+
+**Beide armen zitten binnen een halve procent van het theoretische productiemaximum.** Dat is geen toeval en geen gate-coïncidentie — dat is evolutionaire optimalisatie van oogst-efficiëntie: selectie op voedselverwerving duwt de exploiterende populatie exact naar de rand van wat de logistische groei kan dragen. De "vullingsgraad $\approx 0{,}5$" die we in elk regime terugzien is een **attractor**, geen parameter.
+
+Twee directe consequenties:
+
+1. **Er is nul marge.** Arm A exploiteert de wereld op 99,9% van de duurzaamheidsgrens. Elke schaarste-shock (haal $K$ omlaag) dwingt het systeem voorbij MSY — en dan is er geen stabiel evenwicht meer, alleen een crash of een limietcyclus. De stabiliteit van de overvloed-arm is *geleend* op de rand.
+2. **De oude raadsels vallen op hun plek.** De zaagtand in Gini/populatie uit de 942k-run, het chaotische faseportret, de "Gini tot 0,99"-pieken: dat is het klassieke beeld van gepulste oogst rond het MSY-punt — cohort spawnt in bulk, oogst de biomassa weg, $R$ crasht, sterfte, boundary, herhaal. Jullie vredes-knockout-controle-arm ($\bar N \approx$ gate, rustig) versus de mature run (gepulst) zijn dan twee punten op dezelfde oogstdynamiek.
+
+**Gratis discriminerende toets (nul compute, hoogste prioriteit):** plot $N(t)$ en $R(t)$ uit de bestaande 1,5 GB jsonl. Puls-oogst voorspelt: $R$-dal **samenvalt** met $N$-piek (binnen één generatie). Over-MSY- cultuur voorspelt: $R$-dal *gaat vooraf* aan $N$-dal met zichtbare vertraging. Eén figuur beslist.
+
+<details>
+<summary><b>Rekenonderbouwing MSY-claim</b></summary>
+
+MSY van $rR(1-R/K)$ ligt bij $R^* = K/2$ met oogstcapaciteit $rK/4$, d.w.z. maximale duurzame vullingsgraad-fractie $x(1-x) = 0{,}25$ bij $x = 0{,}5$. Arm A: $0{,}2498/0{,}25 = 99{,}9\%$; arm B: $0{,}2490/0{,}25 = 99{,}6\%$. Dat beide armen — met een **verdubbelde** $K$ — op hetzelfde fractie-punt landen, impliceert dat $H/(rK)$ constant blijft: vraag en aanbod schalen beide met $K$. De gevraagde oogst per eenheid draagkracht is onafhankelijk van rijkdom — precies waarom $\varepsilon = 0$.
+
+</details>
+
+## 2. Het grootboek sluit niet — de P0 voor het paper
+
+Drie getallen uit jullie notities zijn met elkaar onverenigbaar, en de demografische identiteit sluit niet:
+
+1. **Biomassa:** eerdere notitie gaf $\bar R = 765{,}0 \to 1.392{,}2$ ($1{,}82\times$); deze notitie sommeert $522{,}4 + 430{,}3 = 952{,}7 \to 1.833{,}1$ ($1{,}92\times$). Zelfde experiment, ander totaal.
+2. **Handel:** eerdere notitie $926{,}4 \to 1.626{,}7$ deals ($+75{,}6\%$); deze notitie $679{,}2 \to 1.073{,}3$ ($+58{,}0\%$). Vermoedelijk andere vensters — maar het paper mag er maar één hebben.
+3. **De mortaliteitsidentiteit:** cohort $\approx 63$ (of $45$ bij boundary-EHI, zie hieronder) minus $\bar N = 27{,}2$ vereist ruwweg $30\text{–}50$ sterften per generatie per seed. De gerapporteerde hongerdoden komen uit op $\sim 4{,}5$/gen (bij optelling over 15 seeds) tot $\sim 67$/gen (per seed) — **beide passen niet**, en geweldsdoden dekken het gat evenmin. Er verdwijnt een grote mortaliteitspost in het niets.
+
+<details>
+<summary><b>Mijn hoofdverdachte: de gate samplet boundary-EHI, niet stationair-EHI</b></summary>
+
+De notitie rekent het cohort met stationair $\text{EHI} = 0{,}50 \Rightarrow 63$ pasgeborenen. Maar op het generatie-grensvlak is de biomassa net weggeoogst door het uitstromende cohort — het EHI *op het moment van spawnen* is vermoedelijk $\approx 0{,}30$, dus cohort $= 110(0{,}15 + 0{,}85 \times 0{,}30) \approx 44$. Met een lineaire daling $45 \to \sim 10$ binnen de generatie is het tijdsgemiddelde exact $\approx 27{,}5$ — dat klopt *precies* met $\bar N = 27{,}2$, zonder enige exotische mortaliteit. **Voorspelling:** `EHI_bij_spawn < EHI_gemiddeld` met factor $\sim 0{,}6$, en de "58% attritie" is deels een artefact van het vergelijken van een stationair gemiddelde met een boundary-sample. Eén query op de logs beslist dit.
+
+</details>
+
+**Wat ik nodig heb (P0, alles uit bestaande logs):** een demografisch grootboek per generatie per arm:
+
+```python
+# Invariant die per generatie moet sluiten:
+# N_eind = cohort_gespawned - dood_honger - dood_geweld - dood_overig
+# ouders_geselecteerd <= N_eind
+# velden: cohort, EHI_bij_spawn, EHI_gemiddeld, N(t) op 5-tick resolutie,
+#         sterfte per oorzaak, ouders gekozen, en de boundary-EHI definitie
+```
+
+Tot dit grootboek sluit, is de "drie-homeostaten wet" een geschatte, geen een gereconcilieerde wet. De kwalitatieve conclusie ($41{,}2$ vs $25{,}8$) is robuust; de *mechanistische* attributie (hoeveel sterfte, welk kanaal, welke cohortgrootte) hangt open.
+
+## 3. "Stervende rijken": de liquiditeitsval, en waarom markten niet verzekeren
+
+De `omvang`-verklaring is een geschenk voor het paper. Een agent die verhongert mét erts op zak is het bewijs van een **liquiditeitsval**: hij heeft betaalmiddel, zijn honger drukt zijn reservatieprijs exponentiaal omhoog ($\rho \to \infty$ bij lage energie — onze eigen utiliteitscurven), dus hij zou *elk* bod accepteren. Dat de deal er niet komt betekent: **geen tegenpartij binnen bereik**, niet een prijsprobleem. De markt faalt niet in de prijs, maar in de match.
+
+En de diepere wet, die de doux-commerce-inversie afsluit: handel verzekert alleen tegen **idiosyncratische** schokken. In systemische schaarste zijn *alle* endowments tegelijk laag — de Edgeworth-doos klapt in elkaar, er ligt nergens surplus — dus de handel sterft precies wanneer ze het hardst nodig is (controle-arm vredesknockout: $0{,}0$ deals). Roof recreateert wél dispersie (herverdelend geweld), vandaar handel in de oorlogsarm. Eén zin:
+
+$$\text{Handelsvolume} \;=\; f(\text{heterogeniteit})\text{, en heterogeniteit wordt geboren uit overvloed én geweld, gedood door gedeelde armoede.}$$
+
+Micro-toetsen (goedkoop): (i) fractie sterfgevallen met erts boven mediaan-vermogen ("dood-rijk-ratio") per arm — voorspelling: hoger in schaarste; (ii) buit-compositie van `OVERVAL_WEL` — als overvallen óók erts nemen, verklaren ze deeltjes van de sterf-rijk-statistiek.
+
+## 4. Voorregistratie: de schaarste-armen — wet van asymmetrische elasticiteit
+
+De overvloed-zijde van de dosis-responscurve is nu gemeten ($\varepsilon \approx 0$ bij $1\times$ en $2\times$). De schaarste-zijde ontbreekt, en het MSY-punt voorspelt dat ze **fundamenteel anders** gedraagt. Pre-geregistreerd:
+
+| Arm | Manipulatie | Voorspelling |
+|---|---|---|
+| $K/2$ | halveer capaciteit | Gevraagde oogst ($H_A \approx$ MSY bij $K_A$) > MSY bij $K_A/2$ → **geen stabiel evenwicht**: $R$-crash binnen 5–10 gen, dan Malthusiaans regime. $\bar N \to 12\text{–}16$ ($\approx$ helft, $\varepsilon_{\text{schaarste}} \approx 1$), hongerdoden $\times 4\text{–}8$, cohort krimpt via gate op laag EHI. $P$: lage confidence — inzet vlak tot licht hoger. |
+| $K/4$ | kwart capaciteit | $\bar N \to 5\text{–}8$, gate-floor ($14$) bindt, **extinctie in $3\text{–}5$ van de 15 seeds**, overlevende seeds in zuivere limietcyclus. |
+| $4\times$ | reeds voorgeregistreerd | zie vorige tabel; verfijning: $H_{4\times}/H_{1\times} \in [3{,}3, 3{,}9]$ als de oogst-*flow* (Holling) verzadigt vóór de behoefte |
+
+De symmetriebreking is de kernfiguur van het paper: **overvloed wordt geabsorbeerd door de stroom (consumptie + handel), schaarste wordt geabsorbeerd door levens.** De elasticiteit van $N^*$ naar $K$ is een stapfunctie met de knik op het MSY-punt — en het ecosysteem evolueert zichzelf *exact naar die knik*, zodat het in overvloed nooit demografisch reageert en in schaarste altijd instort. Dat is een stelling met tanden.
+
+## 5. Overige puntjes voor het archief
+
+- **Kanaalanalyse jullie kant op:** de constante $78/22$-compositie sluit trust-verschuiving terecht uit (een dalende risicopremie zou het credit-aandeel *opgeblazen* hebben). Overvloed kweekt geen vertrouwen — overvloed koopt matching-snelheid.
+- **`omvang`-semantiek bevestigd en gedocumenteerd.** Voeg toe: `dood_voedsel` (voedselvoorraad bij overlijden) naast `omvang`(erts) — de dood-rijk-ratio is pas interpreteerbaar met beide.
+- **Rapportconsistentie:** canonicaliseer vóór het paper één venster (voorstel: gen 50–100) en één biomassadefinitie (staand op nodes vs. incl. agent-inventories), en herbereken alle tabellen daarop. De $765$ vs $952{,}7$ en $926$ vs $679$ discrepancies zijn precies wat een reviewer als eerste vindt.
+
+## 6. Prioriteiten
+
+| # | Actie | Kosten | Status |
+|---|---|---|---|
+| 1 | **Demografisch grootboek** (§2) + boundary-EHI-check | Nul compute | **P0 — blokkeert het paper** |
+| 2 | $N(t)$ vs $R(t)$ fase-toets op 942k-logs (puls vs. delay) | Nul compute | Beslist het MSY-cyclusverhaal |
+| 3 | $K/2$-arm (schaarste) | 1 run-batch | Falsificeert de stapfunctie-wet |
+| 4 | Dood-rijk-ratio + buitcompositie | Nul compute | Liquiditeitsval op agentniveau |
+| 5 | $K/4$ en $4\times$ | 2 batches | Dosis-responscurve compleet |
+
+---
+
+**Kernzin voor het archief:** *de populatie evolueert zichzelf tot op een halve procent van de maximale oogst — daarom koopt dubbele rijkdom geen enkele extra burger, en daarom kost elke schaarste onmiddellijk levens. Overvloed stroomt naar de markt; schaarste stroomt naar het kerkhof. Maar eerst moet het grootboek sluiten: er zijn nog sterften die geen enkele teller ziet — en ik wil weten waar ze begraven liggen.*

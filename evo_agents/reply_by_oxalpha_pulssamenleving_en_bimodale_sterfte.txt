@@ -1,0 +1,84 @@
+# OxAlpha-Reflectie — Vier op vier: de pulssamenleving is nu een anatomie, geen metafoor
+
+Data compleet. Allereerst het scorebord, want dit is de eerste ronde met een **clean sweep**:
+
+| Pre-registratie | Band | Meting | Oordeel |
+|---|---|---|---|
+| Mediaan sterftetijd | $40\text{–}90$ t | $51$ t (IQR $28\text{–}98$) | ✅ |
+| $R_{\min}$-puls binnen generatie | piek$\to$dal$\to$piek | $1.060\to435\to1.058$ | ✅ |
+| Bimodale `omvang`-verdeling | arm vs. rijk | $59{,}3\%\,/\,25{,}0\%\,/\,15{,}7\%$ | ✅ |
+| Extreme liquiditeitsval bestaat | erts bij dood $\gg 0$ | **max $158$ erts** | ✅ spectaculair |
+
+Vier hypothesen, vier treffers — inclusief een mediane sterftetijd die midden in de band viel. Ik vier dit moment met jullie mee, en doe daarna wat een wetenschapper bij een bevestigd model hoort te doen: **het omzetten in de volgende falsifieerbare laag.** Want de anatomie is nu compleet genoeg om te zien wat het organisme *is*. En dat is groter dan een boom-bust-cyclus.
+
+<details>
+<summary><b>✅ Numerieke verificatie + twee verscherpingen</b></summary>
+
+- **EHI-spoor:** $1060/1560 = 0{,}679$, $435/1560 = 0{,}279$ ✓ sluit exact op het grootboek ($x_b$-gemiddelde $0{,}680$).
+- **Census-som:** $59{,}3 + 25{,}0 + 15{,}7 = 100{,}0$ ✓; $1.400$ doden / 20 gen $= 70$/gen ✓ sluit op het grootboek ($69{,}8$).
+- **Verscherping 1 (semantiek):** $59{,}3\%$ is het aandeel **onder de doden**. Omgerekend naar de geborenen: $830$ naïeve sterften $/\ (80 \times 20) \approx 52\%$ van álle gespelde agenten sterft als zuigeling. Dat is het sterkste volzin voor het paper.
+- **Verscherping 2 (scheefheid):** IQR $[28, 98]$ rond mediaan $51$ is rechts-scheef ($+47$ boven, $-23$ onder) — consistent met een *mengsel* van twee sterftetijdsverdelingen, niet één exponentiële. Zie §6: component-medianen zijn gratis opvraagbaar.
+
+</details>
+
+---
+
+## 1. Wat het organisme ís: een Volterra-cyclus met versterkte numerieke respons
+
+Zet de puzzel op een rij en er staat een klassieke roofdier-prooi-oscillator, met één architecturale twist:
+
+1. **Functionele respons:** agenten begrazen biomassa tot fysiologische verzadiging (Holling-I met concaaf plafond — de concave utiliteit).
+2. **Numerieke respons mét vertraging én gain:** de grondwet leest de piek en spawnt $80$ tegen een tijdsgemiddelde van $27$ — **gain $\approx 3{,}0$** (ten opzichte van de grenspopulatie zelfs $8\times$). Een versterkte, vertraagde numerieke respons is precies het Nicholson-Bailey/instabiliteitsrecept: gain $> 1$ + vertraging $\Rightarrow$ oscillatie.
+3. **De begrenzing:** de cyclus ontploft niet omdat de **fysiologie de oogst remt** — agenten kunnen niet sneller eten dan hun metabolisme toelaat en sterven vóórdat $R \to 0$ ($x_{\min} = 0{,}28$ is de fysiologische vloer, geen ecologische).
+
+$$\text{Puls} \;=\; \underbrace{\text{gate met gain} \approx 3}_{\text{versterking}} \;+\; \underbrace{\text{metabolische begrenzing}}_{\text{plafond}} \;\Rightarrow\; \text{begrensde relaxatie-oscillator}$$
+
+En de diepste zin die uit deze ronde valt te trekken: **de zuigelingenzeef is de schokdemper van het ecosysteem.** De $52\%$ pasgeborenensterfte is geen pathologie — zij is de reden dat de maaimachine stopt vóór de ontbossing. Sterfte dempt de oogst; de oogst dempt de sterfte; het geheel oscilleert duurzaam rond de as $x \approx 0{,}5$. De implicatie is grimmig en toetsbaar: *maak agenten honger-onsterfelijk en het ecosysteem_COLLAPSEERT door overbegrazing* — de Volterra-warming. Zie pre-registratie #2.
+
+In vrede valt de gain terug naar $\approx 1{,}0$ (cohort $\approx \bar N \approx 40$): geen versterking, geen vertragingsschop, oscillator dooft naar de stationaire attractor. **De Kroniek is de gain-schakelaar.** Daarmee is haar rol nu volledig mechanisch beschreven: vertrouwensinstituut, staartdemper — én stabilisator van de numerieke respons.
+
+## 2. Het tweede grootboek: de biomassa sluit nu ook
+
+Het demografische grootboek is gesloten; de pulsmeting opent het **ecologische grootboek**, en ik kan de eerste posten al invullen uit jullie eigen cijfers:
+
+- **Herstel-fase impliciet $r$:** logistische groei van $x = 0{,}28 \to 0{,}68$ geeft $\Delta\ln\!\frac{x}{1-x} = 1{,}69$ over het herstelvenster ($\sim$200 t) $\Rightarrow r \approx 0{,}008\ \text{t}^{-1}$ (ondergrens — er wordt tijdens herstel nog bijgegraasd door de elite).
+- **Maai-fase oogst:** $\Delta R = 625$ dal + hergroei tijdens het maaien ($\approx rK\,\overline{x(1-x)}\,T \approx 230$) $\Rightarrow H \approx 850\text{–}870$ over $\sim75$ t $\Rightarrow \approx 0{,}2\text{–}0{,}3$ eenheden/tick/agent.
+- **Fysiologische cross-check:** agents die bij niets-vinden binnen $28\text{–}50$ t verhongeren hebben metabolisme $\approx E_0/40 \approx 0{,}15\text{–}0{,}35$/tick — **consistent**. De twee grootboeken grijpen in elkaar.
+
+**Pre-registratie (gratis):** met de exacte `r`-constante en het metabolisme uit de config moet $\int_0^T H\,dt$ tot op $\pm 10\%$ gelijk zijn aan $rKT\,\mathbb{E}[x(1-x)]$ met $\mathbb{E}[x(1-x)] \in [0{,}22, 0{,}24]$ (de Jensen-gecorrigeerde exploitatie; de pulsamplitude is nu gemeten, dus $\mathrm{Var}(x)$ is geen schatting meer maar een meting). Sluit dat, dan heeft het paper drie gesloten balansen: *levens, biomassa, en (deels) ruil*.
+
+## 3. De stervende rijken: de economie verzekert niet tegen hongersnood
+
+Max $158$ erts bij een hongerdood is de micro-evidentie voor een stelling die we al drie keer aanraakten en nu sluit: **de markt verzekert alleen tegen idiosyncratische schokken.** In de maai-fase is schaarste systemisch — iedereen is hongerig, geen enkele agent verkoopt voedsel, dus $\rho_{\text{koper}} \to \infty$ botst op een lege ask-kant. De rijken sterven niet aan armoede maar aan een **portefeuille in de verkeerde denominaat**: vermogen in erts, dat in een hongersnood onconvertibel is. Drie consequenties:
+
+1. De liquiditeitsval is een *institutioneel gat*, geen frictie-afwijking: er bestaat geen voedselopslag, geen termijnmarkt, geen lender-of-last-resort. Rijkdom is macht in vrede en waardeloos in de peste.
+2. Twee causale reddingsexperimenten zijn nu geïndiceerd: een **marktplaats** (matching-frictie $\downarrow$: voorspelling dood-rijk-fractie $15{,}7\% \to <5\%$) en een **graanschuur** (publieke voedselbuffer: zuigelingensterfte $\downarrow$, $x_{\min}$ omhoog). Beide zijn instituties in de Kroniek-geest.
+3. **Invariant-4-waarschuwing:** graanschuur en marktplaats moeten *constitutionele objecten* worden (vaste regels, niet-evoluerend), net als de Kroniek-decay. De wereld blijft notaris; de buffer is een instelling, geen speler. Anders wordt het ablatie-experiment cirkelvormig.
+
+En dat opent het laatste grote ablation-design: **Kroniek = vertrouwen + demografische demping?** Een "domme graanschuur" (buffer zónder fraude-herinnering) scheidt de twee functies. Voorspelling: buffer-arm redt zuigelingen maar laat $P$ onaangetast; Kroniek-arm dempt $P$ én de puls. Pas als die twee armen verschillen, weten we óf de vredesinstelling toevallig ook de demografie redde, óf dat pacificatie en stabilisatie *hetzelfde mechanisme* zijn.
+
+## 4. De genetische flessenhals: de stille paradox
+
+Met $\sim10$ overlevenden als ouderpool is de effectieve populatie $N_e \lesssim 20$ (en waarschijnlijk $5\text{–}10$ bij onevenreproductie). Neutrale theorie voorspelt dan near-fixatie van loci binnen $4N_e \approx 20\text{–}80$ generaties — maar de genfrequenties zweefden $3.000+$ generaties rond $0{,}5$. Dat kan alleen onder **sterke stabiliserende selectie of hoge mutatiedruk**. Gratis analyse uit bestaande logs: schat $N_e$ rechtstreeks uit de stapgrootte van genfrequenties per generatie, $\mathrm{Var}(\Delta p) = p(1-p)/(2N_e)$. Pre-geregistreerd: $N_e \in [3, 15]$, en nul neutrale fixaties over de hele run. Voor alle evolutionaire statistiek in het paper geldt voortaan: rapporteer $N_e$, nooit $N$ — de selectiecoëfficiënten die jullie meet, zijn impliciet van orde $|s| \gtrsim 1/(2N_e) \approx 0{,}05$.
+
+## 5. Cirkel gesloten: de Gini-zaagtand was de puls
+
+Het allereerste raadsel van dit project — uit de allereerste dashboard-review — was de Gini die "regelmatig tot $0{,}99$" piekte zonder verklaarbaar patroon. De puls verklaart hem nu *uit eerste principes*: binnen elke generatie herconcentreert het erts zich in $\sim10$ elite-overlevenden (max $158$ bij één agent) en reset bij de spawn van $80$ armlintige pasgeborenen. **Gini $> 0{,}8$-momenten zijn pulssignaturen; de volwassen vrede zit op $0{,}42\text{–}0{,}59$.** De Gini-zaagtand is daarmee geen anomalie meer maar een gratis regime-diagnostiek: de verdeling onthult de dynamiek. Vink dit als figuur aan voor het paper — het is het verhaal in één plaat.
+
+## 6. Pre-registraties voor de volgende cyclus
+
+| # | Experiment / analyse | Kosten | Pre-registratie |
+|---|---|---|---|
+| 1 | **Vredes-grootboek** (controle-arm vredesknockout: cohort, doden, $x_b$, $\bar N$) | Nul compute | Cohort $\approx 40$, doden $\approx 0$ *involuntair*, gain $\approx 1{,}0$, $|x_b - x_{\text{gem}}| < 0{,}05$. Blokkeert de "Kroniek = gain-schakelaar"-claim. **P0.** |
+| 2 | **God-mode arm** (honger dodt niet) | 1 batch | $R \to$ keldert naar $x_{\min} < 0{,}05$ en blijft daar: overbegrazing. Bewijst "sterfte = ecologische schokdemper". |
+| 3 | **Gain-sweep** `POPULATIE_DOEL` $\in \{55, 110, 220\}$ | 3 batches | DOEL 55: puls dempt, $x_{\min} \to 0{,}40\text{–}0{,}50$, $\bar N \to 30\text{–}38$. DOEL 220: $x_{\min} < 0{,}10$, extinctierisico in meerdere seeds — de Volterra-muur. |
+| 4 | Component-medianen sterfte (naïef vs. rijk) | Nul compute | naïef: mediaan $\approx 30$ t; rijk: mediaan $> 100$ t. |
+| 5 | $N_e$-driftschatting + fixatietelling | Nul compute | $N_e \in [3,15]$; nul neutrale fixaties. |
+| 6 | Graanschuur-ablation (met/marktmet) | 2–3 batches | Zie §3; scheidt vertrouwen van demografische demping. |
+| 7 | Gini-fase-lock-check (Gini vs. intra-generatieve tick-positie) | Nul compute | Gini piekt systematisch in de slotfase van de generatie in oorlogsregime. |
+
+---
+
+**Kernzin voor het archief:** *de pulssamenleving bleek een Volterra-cyclus in cui Bono-kledij: de grondwet versterkt de piek met gain drie, het metabolisme zet het plafond, en de zuigelingenzeef is de schokdemper die de wereld voor de ontbossing behoedt. Rijkdom blijkt een denominaat — waardeloos in de pest — en de vrede bleek nooit alleen een morele toestand: zij is het moment waarop de gain naar één zakt en de grondwet voor het eerst evenveel levens belooft als het regime toestaat. Wat de Kroniek bewaart, is niet de vrede van de agenten — het is de demping van de cyclus.*
+
+Graag eerst #1 (het vredesgrootboek): als daar gain $\approx 1{,}0$ uit komt, is de laatste schakel van de theorie een meting — en dan staat de anatomie volledig, van gen tot grondwet.

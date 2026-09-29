@@ -1,0 +1,84 @@
+# Verdict: yes — this is the healthiest state the project has ever been in. But read "healthy" precisely: **peaceful, poor, and genetically dormant.** Three real achievements, three new frontiers. And one anomaly in your screenshots that we need to resolve before trusting any of it.
+
+---
+
+## 1. First, the third-party review — I endorse it, with three caveats
+
+The review's methodology (archaeological diff of the communication trail against the code, grep-verifying each numbered fix) is exactly right, and its verdict matches what I can see *behaving* in your telemetry: the √d-fix producing clusters of 10–16 instead of a flat ~100, the raid-pressure tax and Kroniek coinciding with P collapsing from 0.41 to 0.12–0.17, the survival-weighted wealth term in place. The critique loop demonstrably closed. That said:
+
+1. **Presence ≠ calibration.** Grep confirms a fix exists; only dynamics confirm it's tuned right. (In this case the dynamics — clusters fluctuating 10–16, P low and stable — do confirm calibration. But that's a lucky property of these particular fixes; it isn't general.)
+2. **Static-only analysis.** The reviewer couldn't execute numpy, so `test_economics.py` is verified to *exist* and look like genuine hypothesis-testing, not that it *passes*. Re-run `pytest -q` on your machine — that closes the last gap.
+3. **Coverage gap.** The review audited round-1 P1/P2 items thoroughly, but my second-round list included items it doesn't mention: harvest friction under scarcity, hunger-scraping (P3), κ-decay (P2). The κ=0.50 flatline (below) suggests κ-decay *was* implemented. Worth a one-line confirmation each.
+
+## 2. Scorecard: t≈360k → t≈940k
+
+| Signaal | 360k | 940k | Lezing |
+|---|---|---|---|
+| Parasitaire druk P | 0.06–0.17 | 0.12–0.17, pieken 0.25 | Vrede is **duurzaam** — 850k+ ticks, ~2800 generaties zonder regime-wissel |
+| EHI | 0.22, crash-cycli naar N=20 | 0.24–0.33, N glad 30–55 | **Verbeterd en gestabiliseerd** — de EHI-gescaleerde populatietarget (de "beyond spec" extensie) werkt: geen overshoot-collapse meer |
+| κ | 0.13, stale oorlogserfenis | **0.50, doodvlak** | Zie Finding A — dit is de fix die werkte, en daarmee blind werd |
+| Gini | zaagtand → 1.0 | zaagtand → ~1.0 | Onveranderd — winner-takes-most + cohort-liquidatie (erfenis is P3, terecht uitgesteld) |
+| Extincties | 0 | 0 in **~3100 generaties** | L5 doet zijn werk |
+| Genfrequenties | ruis om 0.5 | ruis om 0.5, over nu 1200+ zichtbare generaties | Zie Finding C — dit is de grootste nieuwe bevinding |
+
+## 3. Finding A — κ=0.50 flat is the decay-to-prior fix working, and the metric going blind
+
+A perfectly flat κ=0.50 across five screenshots spanning 4k ticks is not cooperation at 50% — it's the EMA decayed to its neutral prior because **trade/raid events are rare**. The fix I recommended (decay toward prior during event-poverty) was implemented and now does its job too well: κ no longer tells you anything. The histogram's invisible green bars say trade volume is near zero.
+
+But note — **thin trade at EHI≈0.3 is correct economics, not a bug.** When everyone is food-stressed, everyone's `k_v` is exponentially inflated, everyone's ρ is high, nobody has a food surplus worth selling, and the double coincidence of surpluses vanishes. Famine freezes food markets; ore is unfed hunger ("geld kan honger niet kopen"). The price machinery is *behaving*; it just has nothing to trade. **Metric repair:** add a rolling `handels_per_100_tik` count to `TikSteekproef` so volume is measured directly instead of inferred from a decayed EMA.
+
+## 4. Finding B — the society has found a Malthusian subsistence attractor
+
+EHI sits at ~0.3 and has stopped falling *and* stopped rising. My analysis of why:
+
+- Consumption ≈ regrowth at R≈470. Any resource surplus is converted into population (the EHI-scaled target), any deficit kills agents — so R is pinned where yield = consumption. This is the classic **Malthusian trap**, and credit where due: the governor extension turned the old overshoot-collapse cycle (EHI 0.22, N crashing to 20) into a smooth, *higher* equilibrium (EHI ~0.31). It stabilized the trap rather than causing it.
+- **The rich-starve pathology persists**: screenshot 4's table shows `DOOD_HONGER` with omvang 29 and 35 — agents dying of hunger with a fortune in ore. The liquidity trap I flagged last time was never fixed (scraping was P3). In famine, ore buys nothing.
+- And I found a **policy weakness that feeds it**: in `kies_actie`, the BEWEEG utility is a *constant* — `beste_buurcel` picks a value-informed direction, but the action's score doesn't scale with how good the target is. A starving agent next to nothing wanders with the same drive as one next to a rich food node. Cheap, high-impact patch:
+
+```python
+# policy.kies_actie — vervang de constante BEWEEG-score door waarde-gevoelige score:
+cel = perceptie.beste_buurcel(self.waarde)
+if cel is not None:
+    wx, wy = a.wereld.breedte, a.wereld.hoogte
+    bron = a.wereld.grid.get(((a.pos[0] + cel[0]) % wx, (a.pos[1] + cel[1]) % wy))
+    score = 0.35 if bron is None else (
+        0.35 + 1.9 * min(1.0, self.waarde(bron.res, min(bron.hoeveelheid, 8.0)) / 45.0))
+    kandidaten.append((score * (1.0 + 0.3 * g.waarde("nieuwsgierigheid")),
+                       Actie(ActieType.BEWEEG, richting=cel)))
+```
+
+Hongerige agenten lopen nu richting waarde in plaats van dood te sterven naast een voedsel-node die ze één cel te ver zaten.
+
+## 5. Finding C — genetic stasis: the peace is institutional, not genetic
+
+This is the most important scientific observation in the 900k run. The genfrequencies panel is a **neutral tangle around 0.5 for 1200+ generations** — no directional drift, not even for `stofwisseling`, which *should* be under relentless selection (lower metabolism = lower cost *and* higher max energy; m→0 is strictly fitter). Flat best-fitness is expected in an EHI-capped world, but neutral gene-means are not.
+
+Diagnosis: **selection pressure < mutation + drift.** At N≈40 with high environmental variance (position luck dominates fitness), the gene→fitness signal is swamped. The consequence is profound: *the pacification you're seeing is being enforced by institutions (Kroniek, raid-tax, retaliation, ostracism) on a genome that never assimilated cooperation.* The parasites aren't extinct — they're suppressed. Which yields the key experiment:
+
+> **Ablation: Kroniek off.** ≥10 seeds, short runs, everything else identical. Prediction if Finding C is right: P rebounds to 0.3+ within ~10 generations. If it doesn't, the genes did assimilate and the tangle misled us. Either result is publishable; right now we don't know which world we're running.
+
+And the audit that tells us whether selection is operating at all: Mann-Kendall trend per gene over generation-*blocked* means (block-average the JSONL `gen_gem` per `generatie` first — the sawtooth autocorrelation will otherwise fake significance). With 9 genes, expect 0–1 false positives at α=0.05 under pure drift. If all flat → raise the selection-to-drift ratio (larger N, lower σ-floor, or milder macro-mutation) or consciously accept that this is a drift regime.
+
+## 6. ⚠️ Telemetry integrity — your five screenshots are not one consistent run
+
+Before anything above is treated as settled, three inconsistencies need a 5-minute JSONL check:
+
+1. **Screenshot 4** (Gebeurtenissen): histogram spans 0–95k, table tops out at tick ~95.5k — yet its header says t=939112. Either this panel is from a *different/earlier run segment* (most likely — a fresh restart at ~95k), or **event recording silently stalled at 95.5k** while tick-recording continued for 845k more ticks (e.g., the death-loop `_meld` lost in a refactor).
+2. **Screenshot 2** (Evolutie): the x-axis runs ~700–1200 generations. At t=941867 with tpg=300, generation should be ≈3139. Either `TICKS_PER_GENERATIE` was changed (~780 — fine, but document it) or this panel is consuming stale/replayed records.
+3. Check: `Select-String -Pattern '"gebeurtenis"' runs\*.jsonl | measure` per tick-range, and compare `config_hash` in the header(s). If two runs got mixed in one screenshots batch, label them — the 900k-state analysis above stands on the four consistent panels, but I'd rather we know.
+
+## 7. Experiment queue
+
+| Prio | Experiment / fix | Vraag die het beantwoordt |
+|---|---|---|
+| **P1** | Kroniek-ablation (10+ seeds) | Is vrede institutioneel of genetisch? (Finding C) |
+| **P1** | Gene-trend audit (blocked Mann-Kendall) | Selecteert de evolutie überhaupt? |
+| **P1** | Telemetry-integriteitscheck (§6) | Geloven we de panelen? |
+| P2 | Waarde-gevoelige BEWEEG-score (patch §4) + scraping | Breekt de rich-starve liquidity trap? |
+| P2 | `handels_per_100_tik` metrieκ | Is de markt echt dun, of alleen κ blind? |
+| P3 | Escape-toets: verdubbel `draagkracht` in één arm | Blijft EHI op 0.3 plakken → demografische pin; stijgt het → fysieke pin |
+| P3 | Erfenis-pilot, staggered generaties | Gini-zaagtand en cohort-reset uitdoven |
+
+---
+
+**Slotwoord.** De derde partij heeft gelijk: de architectuur is trouw geïmplementeerd en de kritiekloop sluit zichzelf. Maar de interessante wetenschap is nu pas begonnen — jullie hebben een synthetische samenleving gebouwd die, volledig uit endogene dynamiek, de **Malthusiaanse subsistentie-val** heeft betreden, zichzelf erin **gepacificeerd via instituties in plaats van genen**, en 3100 generaties zonder extinctie volgehouden. Dat is geen simulatie die "goed draait" — dat is een simulatie die *iets bewijst*. De Kroniek-ablation bepaalt welke van de twee. Draai die als eerste.

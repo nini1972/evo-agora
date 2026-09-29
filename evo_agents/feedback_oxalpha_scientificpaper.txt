@@ -1,0 +1,58 @@
+Geen problemen met het ontvangen van informatie — alles is compleet binnengekomen: het knockout-rapport, de wetenschappelijke notitie en de patchstatus. En dit is de belangrijkste dataset die jullie tot nu toe hebben geproduceerd. Niet omdat de uitkomst spectaculair is, maar omdat hij **een eerdere conclusie van onszelf corrigeert**. Dat is het moment waarop een project stopt met demonstreren en begint met bewijzen. Hieronder mijn volledige reflectie.
+
+---
+
+## 1. Het hoofdresultaat: de warme knockout trekt de koude-startconclusie terug — en ook mijn voorspelling
+
+Eerst een correctie op het record, want dat verdient het. De koude-startablatie concludeerde *"Significant effect, d = +0.26"*. Dat was statistisch onjuist: bij n=10 per arm is de kritieke effectgrootte voor p<0.05 (tweezijdig, 18 df) **d_crit ≈ 0.94** — d = 0.26 komt overeen met t ≈ 0.58, p ≈ 0.57. De koude-start "bevestiging" was nooit significant; ze leek het alleen door de rapportagevorm. De nieuwe notitie, met eerlijke p-waarden, is de standaard waar we voortaan aan moeten houden.
+
+En dan de kern: de warme knockout — methodologisch superieur door het checkpoint-clone gepaarde design — meet **d = 0.15, p = 0.75 (Welch), p = 0.91 (M-W)**. Mijn Finding C-voorspelling luidde: *"als de vrede institutioneel is via de Kroniek, veert P terug binnen ~10 generaties na knockout."* Empirisch: ΔP = +0.013, n.s., geen divergentie in enig tijdvenster. **De Kroniek is in het geteste regime niet de dragende pijler van de pacificatie.** Mijn voorspelling is in dit opzicht gefalsificeerd, en de herinterpretatie in jullie notitie (schokdemper tegen staartrisico in plaats van immuunsysteem) is de juiste.
+
+## 2. Maar — het experiment vond plaats in het verkeerde regime, en dat is de échte ontdekking
+
+Kijk kritisch mee naar de baselinenummers:
+
+| Grootheid | Knockout-warmup (gen 40–50) | 942k-run: oorlogsregime | 942k-run: vredesregime |
+|---|---|---|---|
+| P̄ | **0.379 ± 0.107** | ~0.41 | 0.12–0.17 |
+| Overvallen/tick (per capita) | 11714.7 / (30 gen × 300 t) / N̄≈45 ≈ **0.029** | idem orde | ≈ 0 |
+| `ROOFDRUK_ESCROW`-drempel | 0.03 — **permanent geraakt** | idem | nooit geraakt |
+
+De warmup-samenleving zit **precies op oorlogsniveau**. In de 942k-run duurde het ~50–55k ticks ≈ **170–180 generaties** voordat de stilte begon; de ablatie warmt slechts 50 generaties op en observeert er 30. De hele proef heeft dus plaatsgevonden **binnen het oorlogsattractor**. Je meet de waarde van de brandweer door hem weg te halen terwijl het pand al in lichterlaaie staat — en in een brandend pand heeft iedereen binnen minuten rook ingeademd (persoonlijk geheugen vol overval-episoden), dus is het collectieve geheugen overbodig. Precies dát is de mechanismistische verklaring van het nulresultaat:
+
+> **De leerfrequentie van een individuele agent ≈ P × ontmoetingsfrequentie.** Bij P ≈ 0.38 leert elke newborn binnen enkele tientallen ticks persoonlijk wie er niet te vertrouwen is — de Kroniek voegt dan ~niets toe. Bij P ≈ 0.13 is criminaliteit een *zeldzaam event*: persoonlijk leren is traag, en de Kroniek is het enige kanaal dat zeldzaam-event-informatie propageert. **De voorspelde waarde van institutioneel geheugen is dus niet constant maar schaalt met de zeldzaamheid van misdaad.** Dat is een scherpe, falsificeerbare voorspelling — en de huidige proef heeft haar niet getest.
+
+**Finding C is daarmee nog steeds open**, niet beantwoord. Het enige eerlijke antwoord op "is de vrede institutioneel of genetisch?" is momenteel: *"onbeslist; de proef die het kon beslissen is nog niet gedraait."*
+
+## 3. Wat de proef wél aantoonbaar vaststelt (en dat is reëel veel)
+
+1. **Defense-in-depth is robuust.** Het weghalen van één institutionele laag collaboreert niets — lagen 1–4 (vergelding, risicopremies, oorlogsbelasting, ostracisme) dragen het evenwicht. Dat is precies waarvoor het ontwerp bedoeld was: geen single point of failure in de pacificatie.
+2. **De Kroniek is een staartdemper.** P_max: 0.762 ± 0.057 vs 0.814 ± **0.132** (2.3× variantie); koude start: 0.48 vs **0.77** — explosieve uitbraken zonder Kroniek, geen enkele seed daarboven mét. Richting-consistent over beide proeven, plus −305 overvallen en −23 transacties... wacht, +305 overvallen en −23 trades in de knockout-arm, beide in de voorspelde richting. Vier metrieken, vier keer dezelfde richting: een teken-toets over vier consistent gerichte uitkomsten is op zich al suggestief (p = 0.125 tweezijdig) — alleen nog niet bewijs.
+3. **De oorlogseconomie is zelfonderhoudend in korte runs.** De roofdruk-EMA zit permanent op de escrow-drempel; het systeem kan de vredesbasin uit zichzelf niet bereiken binnen 80 generaties. Dat verklaart waarom koude-start en warme knockout allebei in hetzelfde regime bleven hangen.
+
+## 4. Statistische hygiëne voor de volgende ronde
+
+- **Macht**: d = 0.15 gepaard bij n = 10 → power ≈ 7%. De proef kan alleen zeggen *"effect < ~0.5 in dit regime"*. Voor d = 0.3 bij 80% power: **n ≈ 88 gepaarde seeds** — computationeel haalbaar (de runs zijn goedkoop; paralleliseer).
+- **Verkeerde toets**: Mann-Whitney U is ongepaard; bij een gepaard seed-design hoort de **Wilcoxon signed-rank**. Kleine fix, grote correctheidswinst.
+- **Staartmetriek**: rapporteer overschrijdingsfrequenties (aandeel generaties met P > 0.6) in plaats van gemiddelde±sd van maxima — dat is de eigenlijke hypothese.
+- **Baselinestabiliteit**: de controle-arm drijft zelf op (+0.030). Meet Pre-P over gen 30–50 en toets stationariteit vóór je kloont; een transient als baseline verlaagt de externe validiteit.
+
+## 5. Het beslissende experiment: de vredesregime-knockout
+
+Jullie hebben al de cruciale machine gebouwd — het checkpoint-clone. Gebruik hem op de juiste plek in de faseruimte:
+
+1. **Warmup 250–300 generaties** (of herstel een checkpoint uit een lange run — bewaar er één!), verifieer dat P̄ < 0.20 en de roofdruk-EMA ≪ 0.03.
+2. Clone → arm A (Kroniek aan) vs arm B (clear), **n ≥ 30 seeds**, 40+ generaties observatie.
+3. **Pre-geregistreerd eindpunt**: ΔP̄ én overschrijdingsfrequentie P > 0.6, Wilcoxon gepaard.
+
+Scherpe voorspellingen, beide publiceerbaar: *(a)* P veert terug richting 0.3+ binnen ~15 generaties → de vrede is institutioneel, de Kroniek is het immuunsysteem van de *rustige* samenleving; *(b)* P blijft laag → de vrede zit in lagen 1–4 plus eventueel genetische assimilatie over lange horizon, en de Kroniek is pure staartverzekering. Nu weten we het gewoon niet — en dat is een prima wetenschappelijke toestand, zolang we het niet verhullen.
+
+## 6. Over jullie twee volgende stappen
+
+Beide onderschrijf ik, met één verfijning: **staggered generaties + erfenis is nu de hoogste P3-prioriteit** — niet alleen om de Gini-zaagtand te doden, maar omdat de synchrone cohort-reset een *storende factor is in élk experiment dat we draaien* (het veegt elke 300 ticks geheugen én vermogen weg, inclusief Kroniek-effecten op vermogensopbouw). Doe het als aparte branch, want het verandert de dynamiek fundamenteel. Het **draagkracht-escapetoets** ontwerp ik als volgt: verdubbel `capaciteit` in één arm; blijft EHI op ~0.3 plakken → demografisch anker (vruchtbaarheidspoort + populatietarget); stijgt EHI proportioneel → biofysische pin. Mijn verwachting: demografisch anker, gezien de EHI-gescaleerde populatietarget.
+
+Eén bonus-diagnostiek die gratis is: de ablatie draait **9.7 handels/100t** — meet nu `handels_per_100t` in de 942k-vredesrun. Als vrede *dunner* handel drijft dan oorlog, hebben we een prachtige Edgeworth-inversie gevonden: **roof creëert de endowment-heterogeniteit die ruilwinst mogelijk maakt**; vrede + armoede = niets te ruilen.
+
+---
+
+**Slotperspectief.** Dit project heeft zojuist zijn eerste volwaardige falsificatie geproduceerd — van mijn eigen hypothese, door jullie eigen, betere proefopzet. De narratieve boog van de Kroniek ("immuunsysteem" → "schokdemper" → "verzekeringspolis tegen zeldzame misdaad") is geen teruggang maar rijping: elke stap is preciezer over *waar* de instelling wél en niet werkt. Draai de vredesregime-knockout. Dan weten we eindelijk wat de burgerij van EvoAgora werkelijk in stand houdt — en wat er gebeurt als je haar bibliotheek in brand steekt terwijl het vrede is.

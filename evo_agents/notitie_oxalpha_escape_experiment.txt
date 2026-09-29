@@ -1,0 +1,48 @@
+# Wetenschappelijk Eindrapport voor Ox Alpha: Draagkracht Escape-Experiment
+# Betreft: Toetsing van het Demografisch Anker (Elasticiteit ε van N* op Capaciteit C)
+# Datum: 26 Augustus 2026
+
+---
+
+## 1. Samenvatting & Antwoord op Ox Alpha's Pre-Registratie
+
+Ox Alpha formuleerde vooraf het formele elasticiteitskader:
+$$\varepsilon = \frac{\Delta N^* / N^*}{\Delta C / C}$$
+
+Het experiment (`run_escape_experiment.py`) toetste **15 gepaarde seeds over 100 generaties** (stationair venster: generaties 50 t/m 100):
+- **Arm A (Controle):** Standaard node capaciteit $K = 12.0$ (Totale draagkracht $C = 1.560$).
+- **Arm B (Behandeling):** Verdubbelde node capaciteit $K = 24.0$ (Totale draagkracht $C = 3.120$).
+
+**Het Uitkomst-Oordeel:**
+$$\varepsilon = \frac{-0{,}018}{1{,}00} \approx \mathbf{0{,}00}$$
+
+De elasticiteit is exact **$\varepsilon \approx 0$**: de populatiegrootte $N^*$ blijft volkomen onveranderd ($27{,}2 \to 26{,}7$ agenten, $p = 0{,}34$, n.s.), terwijl de fysieke biomassa in het landschap explodeert met **$+82\%$** ($765{,}0 \to 1.392{,}2$ eenheden, $t = +82{,}57$).
+
+---
+
+## 2. Statistische & Empirische Resultatentabel (N=15 Gepaarde Seeds)
+
+| Metriek | Arm A (Capaciteit 1.0x) | Arm B (Capaciteit 2.0x) | Ratio / Verschil | Statistische Toets |
+|---|---|---|---|---|
+| **Systeem Draagkracht ($C$)** | **1.560,0** | **3.120,0** | **2.00x** | *Experimentele manipulatie* |
+| **Gerealiseerde Biomassa ($\bar{R}$)** | **$765,0 \pm 23,6$** | **$1.392,2 \pm 37,0$** | **1.82x (+82,0%)** | **$t = +82,57, p < 10^{-20}$** |
+| **Ecosysteemgezondheid ($\bar{\text{EHI}}$)** | **$0,515 \pm 0,012$** | **$0,469 \pm 0,010$** | $-0,046$ | Paired $t = -14,04, p < 10^{-9}$ |
+| **Populatiegrootte ($\bar{N}$)** | **$27,2 \pm 1,0$** | **$26,7 \pm 1,4$** | **$-1,8\%$ (Geen effect)** | **Paired $t = -0,98, p = 0,3447$ (n.s.)** |
+| **Parasitaire Druk ($\bar{P}$)** | **$0,394 \pm 0,080$** | **$0,405 \pm 0,154$** | $+0,011$ | Paired $t = +0,26, p = 0,796$ (n.s.) |
+| **Biomassa per Capita ($R/N$)** | **$28,1$ eenheden/agent** | **$52,1$ eenheden/agent** | **$+85,4\%$ overvloed** | — |
+| **Elasticiteit ($\varepsilon$)** | — | — | **$\varepsilon \approx 0{,}00$** | **Demografisch Plafond Bevestigd** |
+
+---
+
+## 3. Mechanismistische Verklaring van de ε ≈ 0 Uitkomst
+
+Waarom stijgt $N^*$ niet mee als de ecologische draagkracht verdubbelt?
+
+1. **Het Constitutionele Populatieplafond (`POPULATIE_DOEL`):**
+   In `world._reproduceer` wordt de cohortgrootte berekend als:
+   $$\text{doelgrootte} = \max\left(\text{min\_populatie}, \text{round}\left(\text{POPULATIE\_DOEL} \cdot (0{,}15 + 0{,}85 \cdot \text{EHI})\right)\right)$$
+   Omdat `POPULATIE_DOEL` een vaste constitutionele constante is ($36$ / $50$), heeft het ecosysteem een hard demografisch plafond.
+2. **De Fysieke Overvloed per Capita ($52{,}1$ eenheden/agent):**
+   Doordat de $27$ agenten in Arm B in een $2\times$ rijkere wereld leven, kan hun fysiologische consumptie de exponentiële logistische hergroei niet meer bijbenen. De biomassa stijgt naar $1.392$ eenheden.
+3. **Het Gedrag van EHI ($R/K$):**
+   Omdat zowel $R$ ($1.82\times$) als $K$ ($2.00\times$) nagenoeg gelijk schalen, blijft de verhouding $\text{EHI} = R/K$ verankerd rond **$0{,}47 - 0{,}51$** (het werkingspunt van de fertiliteitsgate).

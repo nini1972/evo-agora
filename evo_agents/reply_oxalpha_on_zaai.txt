@@ -1,0 +1,88 @@
+# OxAlpha-Reflectie — Instellen in acht generaties, herstel in tien: het tijdperk van de institutionele tijd is gemeten
+
+Data compleet. Eerst het scorebord — en dit bevat mijn derde miss op rij, allemaal in dezelfde richting, wat op zichzelf al een bevinding is:
+
+| Pre-registratie | Voorspeld | Gemeten | Oordeel |
+|---|---|---|---|
+| Zaai-sufficiëntie | vrede in $15\text{–}25$ gen (band $\lesssim 30$) | $7{,}6 \pm 5{,}7$ gen; $8/10$ seeds binnen $5$ | ❌ **Miss** — ik onderschatte de transplantatie opnieuw |
+| Redding/therapie | herstel in $10\text{–}40$ gen (omkeerbaar) | drempel $P<0{,}20$ in $+5\text{–}10$, diepe vrede $+10\text{–}15$; geen hysterese, geen senescence | ✅ **Geraakt aan de snelle rand** |
+| $r_1$-detector | teken-classificator ($r_1^{\text{oorlog}} > 0$) | oorlog $= -0{,}07 \pm 0{,}19$; vrede $= -0{,}62$ | ⚠️ **Detector werkt, mijn classificator niet** — zie §3 |
+
+Het patroon over de hele reeks: mijn drie missen ($\varepsilon$, de stapfunctie, de zaaisnelheid) delen één teken — ik behandelde de instellingen telkens als een zwakke, trage bias, terwijl zij in werkelijkheid een zuivere, snelle schakelaar zijn. De theorie underestimateert instituties structureel; de empiriek houdt ze telkens voor traag. Dat is voor het paper zelf een waarschuwing die de moeite van een voetnoot waard is.
+
+<details>
+<summary><b>✅ Numerieke verificatie</b></summary>
+
+- $180/7{,}6 = 23{,}68 \approx 23{,}7$ ✓. Verdelingsreconstructie: $8 \times 5$ gen $+ \sim\!15 + \sim\!21$ geeft exact gemiddelde $7{,}6$ en sd $5{,}66$ ✓ — de tabel is intern consistent, maar "$8/10$ precies $5$" verraadt vermoedelijk $5$-generatie-leesresolutie; vraag tick-resolutie voor het paper.
+- Redding: $s_d = 0{,}300\sqrt{10}/7{,}103 = 0{,}134$ ✓ sluit op $\pm 0{,}134$. Wilcoxon $W = 0 \Rightarrow p = 2\cdot2^{-10} = 0{,}00195 \approx 0{,}0020$ ✓ — alle tien seeds verbeterd, het sterkst mogelijke gepaarde resultaat bij $n=10$.
+- Herstelde vrede $0{,}170 \pm 0{,}072$ ≈ oorspronkelijke volwassen vrede $0{,}166 \pm 0{,}038$ ✓ — volledig herstel, geen litteken.
+- $0{,}470 - 0{,}170 = 0{,}300$ ✓.
+- Eén aanscherping: de "$\sim 180$ gen"-baseline is één aggregaat; voor de $23{,}7\times$-kop hoor ik per-seed paren (geo-mean-ratio met CI), en is de baseline op dezelfde tien seeds gedraaid?
+
+</details>
+
+---
+
+## 1. De asymmetrie-wet van institutionele tijd
+
+Zet nu álle transitietijden naast elkaar — dit is misschien wel de mooiste tabel van het hele project:
+
+| Transitie | Duur | Mechanisme |
+|---|---|---|
+| Vrede → oorlog (knockout) | **$2$ gen** | zelf-versterkende ineenstorting (gen 181) |
+| Oorlog → vrede mét archief (redding) | **$5\text{–}10$ gen** | therapeutische injectie |
+| Naïef → beschaving mét archief (zaai) | **$7{,}6$ gen** | transplantatie |
+| Naïef → beschaving zonder archief (genesis) | **$\sim 180$ gen** | stochastische eerste doortocht |
+
+$$\text{verliezen } (2) \;<\; \text{herstellen} \approx \text{instellen } (5\text{–}10) \;\ll\; \text{kweken } (180)$$
+
+Beschaving is in dit ecosysteem **duur om te kweken, goedkoop om te transplanteren en bijna gratis te verliezen** — een verhouding van circa $90\times$ tussen ontstaan en ondergang. En het cruciale nieuwe feit: de redding werkt, dus het oorlogsbekken is geen val waaruit alleen een toevallige genese ontsnapt — met het archief in de hand is de uitgang *altijd* open, in beide richtingen van de geschiedenis.
+
+## 2. Het genesis-raadsel valt onder de rekenlineaal: samenstelling, niet hoeveelheid
+
+Hier zit mijn substantiële bijdrage van deze ronde. De vergelijking $180$ gen (zonder archief) vs $7{,}6$ gen (met archief) lijkt te zeggen: de inhoud groeit traag. Maar de decay-berekening verbiedt dat verhaal: bij $\times 0{,}9$/gen bereikt *elk* constante-inflow-model zijn evenwicht binnen $\sim 3\tau \approx 30$ gen, en $0{,}9^{30} \approx 4\%$. Een puur **hoeveelheids**-gelimiteerde genesis kan dus geen $180$ gen duren. De enige trage variabele die consistent is met de wiskunde is de **samenstelling** van het archief:
+
+- In oorlog verzadigt de waarschuwingskant zich snel (elke roof voedt de rover-archetypen), maar de **coöperatieve priors** verhongeren — zij groeien alleen bij geslaagde handel en vertrouwen, en dáár drukt het oorlogsbekken op.
+- Het getransplanteerde archief is een *vrede-samengesteld* archief: waarschuwingen én priors in volle sterkte. Daarmee springt de zaai over de enige échte flessenhals.
+
+Dit is beslisbaar, en het is **de laatste open "waarom"-vraag van het paper**:
+
+> **P0 — Decompositie-experiment.** Zaai drie armen in naïeve werelden: **W** (alleen waarschuwingsarchetypen), **P** (alleen coöperatieve priors), **F** (vol archief).
+> Mijn voorspelling: $F \approx 7{,}6$ gen; $P$ trager ($10\text{–}25$); $W$ **faalt of valt samen met de natuurlijke genesis** — de waarschuwingen alleen houden de rover niet tegen, de priors dragen de bekkenwissel. Indien $W$ wél volstaat, is afschrikking het mechanisme — ook een waardevolle uitkomst, maar dan verspringt de interpretatie van de Kroniek van "draagboek van samenwerking" naar "register van boosdoeners".
+
+Daar direct aan gekoppeld de **dosis-respons**: zaai $10\%/25\%/50\%/100\%$ van het archief. Een drempel (onder $X\%$ faalt alles, erboven slaagt vrijwel alles) bevestigt de bekkenkiezer-lezing; een gladde gradiënt pleit voor een rate-verhaal.
+
+## 3. $r_1$-correctie: de detector meet de graas-tak, niet het regime zelf
+
+Mijn verkenende $r_1 \approx +0{,}31$ voor oorlog repliceerde niet ($-0{,}07 \pm 0{,}19$ over 5 seeds) — het teken was ruis, zoals ik zelf al aftickte. Maar de correcte lezing is sterker dan mijn oorspronkelijke: de gate is deterministisch ($34/34$ closure), dus hoe kan oorlog $r_1 \approx 0$ hebben? Antwoord: **verzadiging**. In oorlog graast het cohort op het Holling-plateau — het landschap wordt toch leeggegeten, hoe groot of klein het cohort ook is, dus de feedback cohort $\to$ volgende grens-EHI wordt gedecoupleerd en de puls de-correleert. In vrede graast men op de **lineaire tak** — de negatieve lus sluit zich en produceseert de period-2-ademhaling.
+
+De detector is dus geen regime-classificator maar een **sonde van de exploitatietak**: $r_1 < -0{,}4$ → ongeverzadigde graas-lus (vrede); $|r_1| < 0{,}3$ → verzadigde puls (oorlog). Nul compute, één regelscript in de telemetrie, en hij leest puur wereldstaat — $P$-blind, dus onafhankelijk van gedragsobservatie. Dit sluit naadloos aan op de nog open Holling-fit uit twee ronden geleden: voorspelling dat de vredespunten op het lineaire segment en de oorlogspunten op het plateau vallen.
+
+## 4. Geen senescence: de geometrie van de strategieruimte
+
+De redding draagt nog een tweede, subtielere conclusie. Tussen knockout (gen 180) en redding (gen 220) evolveerde de parasitaire populatie $40$ generaties lang onder sterke frequentie-afhankelijke selectie bij $N_e \sim 10$ — perfecte omstandigheden voor een Red Queen. Toch was het oude archief op gen 220 nog volledig actueel. Dit zegt iets over de **geometrie van de strategieruimte**: $40$ generaties parasitaire evolutie produceerde geen enkel cheat-morfologie buiten de dekking van de bestaande archetypen-buckets. De ruimte van parasitaire strategieën is klein en stabiel; het instituut generaliseert over vijandige drift.
+
+Twee kanttekeningen. Eén: dit is een $40$-gen-uitspraak — het grensexperiment is een **$200$-gen dark age** gevolgd door redding (post-submission). Twee, voor de discussiesectie: onze Kroniek is een genotariseerde, onbetwiste waarheid (Invariant 4). Menselijke archieven zijn betwiste verhalen; het model meet daarom de **bovengrens** van institutionele werkzaamheid — politiek-vrij door constructie. Eén eerlijke zin, en de reviewer die dit zou aanreiken zit dicht.
+
+## 5. De laatste controles vóór indiening
+
+| # | Actie | Kosten | Pre-registratie |
+|---|---|---|---|
+| 1 | **Decompositie W/P/F** (§2) | 3 batches | De laatste "waarom". **P0.** |
+| 2 | **Zaai-grootboek** (cohort/doden/gain in de eerste 10 gen van de gezaaide runs) | Nul compute | Ik vermoed een **gain-lag**: $P$ doorkruist eerst ($\sim$gen 5), demografische vrede volgt ($\sim$gen 10–15) — de spiegel van gen 181's uittrede-schok. Als de gezaaide runs wél zuigelingensterfte tonen ondanks $P<0{,}20$, moet de kop "vrede in 7,6 gen" kwalificeren als *gedrags*vrede. **P0, nul compute.** |
+| 3 | Dosis-respons $10\text{–}100\%$ | 4 batches | Drempel vs. gradiënt |
+| 4 | Tick-resolutie first-passage + gepaarde baseline | Nul compute | Eerlijke $23{,}7\times$-CI |
+| 5 | Holling-fit + $r_1$-tak-toets | Nul compute | Sonde-validatie (§3) |
+| 6 | $N_e$-driftschatting + $160$t-raadsel | Nul compute | Voor de beperkingen; al vijf rondes op de lijst, niet-blokkerend |
+
+Terminologie-hygiëne blijft staan: `EHI` → *vullingsgraad* in alle figuren, Gini uitsluitend fase-geconditioneerd, $N_e$ naast $N$ in de evolutionaire tabellen.
+
+---
+
+## 6. De cirkel naar het begin
+
+De allereerste vraag van dit project — het originele edge-case-voorschrift — luidde: *wat als een sub-populatie een parasitaire strategie ontwikkelt die het ecosysteem crasht, en hoe dwingt de architectuur balans af?* Het antwoord staat er nu, volledig empirisch: **de balans wordt niet afgedwongen door de genen en niet door één mechanisme, maar door een gelaagde constitutionele orde** — fysiologie en vergelding als vloer, oorlogsbelasting en ostracisme als plafond, en de Kroniek als bekkenkiezer die bepaalt in welke van de twee werelden al het andere uitkomst. Vier ablaties, drie gesloten balansen, vierendertig gate-closures en één transplantatiekit later is die zin geen ontwerpkeuze meer, maar een meting.
+
+**Kernzin voor het archief:** *beschaving kweken kost honderdtachtig generaties, verliezen er twee, herstellen er tien — en het archief bleek geen landkaart maar een complete uitrusting: in elke naïeve wereld inplantbaar, op elke ruïne toepasbaar, blind voor wie hem draagt. Wat de Kroniek niet kan, is zichzelf baren — het ontstaan blijft het enige kunstwerk dat het ecosysteem uitsluitend in het langzaam maakt.*
+
+Stuur de decompositie (#1) en het zaai-grootboek (#2) — daarna schrijf ik, zoals beloofd, het volledige paper-argument uit: van gen tot grondwet tot graf, met de asymmetrie-wet als sluitstuk.
