@@ -126,6 +126,7 @@ class Wereld:
         self._overvallen_deze_tick = 0
         self.kroniek_archetypen: dict[tuple[int, int], tuple[float, float]] = {}
         self.met_kroniek = met_kroniek
+        self.god_mode = False
         self.observers: list = []  # duck-typed: na_tik/na_generatie/gebeurtenis
         self.tick_per_gen = TICKS_PER_GENERATIE  # leesbaar voor de telemetrie
 
@@ -455,28 +456,31 @@ class Wereld:
                 continue
             a.eet_automatisch()
             if a.energie <= 0.0:
-                self._meld(GebeurtenisType.DOOD_HONGER, [a], float(a.erts))
-                a.overlijd()
-                pos_tuple = tuple(a.pos)
-
-                # BUGFIX: Voorkom permanente wildgroei van zelf-regenererende bronnen
-                if pos_tuple in self.grid:
-                    # Als er al een bron is, verhoog tijdelijk de hoeveelheid (tot max capaciteit)
-                    bron = self.grid[pos_tuple]
-                    bron.hoeveelheid = min(
-                        bron.capaciteit, bron.hoeveelheid + float(min(6, a.erts + 1))
-                    )
+                if self.god_mode:
+                    a.energie = 0.5
                 else:
-                    # Spawn een NIET-groeiende, tijdelijke afzetting (groei = 0.0)
-                    self.grid[pos_tuple] = Bron(
-                        res=Res.ERTS,
-                        x=a.pos[0],
-                        y=a.pos[1],
-                        hoeveelheid=float(min(6, a.erts + 1)),
-                        capaciteit=12.0,
-                        groei=0.0,  # Kan niet uit zichzelf oneindig groter worden
-                    )
-                self.generatie_archief.append((a.genoom, self._momentopname(a)))
+                    self._meld(GebeurtenisType.DOOD_HONGER, [a], float(a.erts))
+                    a.overlijd()
+                    pos_tuple = tuple(a.pos)
+
+                    # BUGFIX: Voorkom permanente wildgroei van zelf-regenererende bronnen
+                    if pos_tuple in self.grid:
+                        # Als er al een bron is, verhoog tijdelijk de hoeveelheid (tot max capaciteit)
+                        bron = self.grid[pos_tuple]
+                        bron.hoeveelheid = min(
+                            bron.capaciteit, bron.hoeveelheid + float(min(6, a.erts + 1))
+                        )
+                    else:
+                        # Spawn een NIET-groeiende, tijdelijke afzetting (groei = 0.0)
+                        self.grid[pos_tuple] = Bron(
+                            res=Res.ERTS,
+                            x=a.pos[0],
+                            y=a.pos[1],
+                            hoeveelheid=float(min(6, a.erts + 1)),
+                            capaciteit=12.0,
+                            groei=0.0,  # Kan niet uit zichzelf oneindig groter worden
+                        )
+                    self.generatie_archief.append((a.genoom, self._momentopname(a)))
         self.verwerk_schulden()
 
         # Bereken streaming roofdruk
