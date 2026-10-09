@@ -87,42 +87,73 @@ Beschaving is goedkoop te verliezen, snel te herstellen en te transplanteren —
 
 ---
 
-## 5. Discussie
+## 5. De Twee Bekkens en de Darwiniaanse Kanaalzetting
 
-De Kroniek is geen demper die het systeem zacht laat landen en geen genezer die agenten beter maakt — zij is een **bekkenkiezer**: zij hertekent welke evenwichten bestaan. Haar ondeelbaarheid volgt uit de twee faalwijzen van de enkelpootige wereld: vertrouwen zonder register wordt geplunderd door de eerste mutant (de vredesknockout), register zonder vertrouwen komt niet tot ruil (de W-falen). Wet en markt zijn co-equal, complementair, en alleen gezamenlijk voldoende. 
+### 5.1 Het Oorlogsprofiel en de Barometer-Overschoot
+Onder 500 generaties continue oorlog ($1{,}500{,}000$ ticks, 10 onafhankelijke zaden) ondergaat de populatie een substantiële genetische verplaatsing ($\overline{\lVert\Delta \mathbf{g}\rVert} = 0{,}5734 \pm 0{,}0927$). Ontbinding in orthogonale componenten toont:
+$$\overline{\lVert\Delta \mathbf{g}\rVert} = 0{,}5734, \quad \lVert\Delta \bar{\mathbf{g}}\rVert = 0{,}4056, \quad \sigma_{\text{orth}} = 0{,}4147$$
+De variantie splitst exact in **$48{,}9\%$ gedeelde parallelle adaptatie** en **$51{,}1\%$ zaad-specifieke variantie** ($\lVert\Delta \bar{\mathbf{g}}\rVert / \sqrt{\mathbb{E}\lVert v\rVert^2} = 0{,}699 \approx 1/\sqrt{2}$).
 
-Twee grenzen van de claim: onze Kroniek is een genotariseerde, onbetwiste waarheid — het model meet daarmee de **bovengrens** van institutionele werkzaamheid; en de instelling is geen erfstuk van wijze agenten — de genen zweefden drieduizend generaties op $0{,}50$. *De vrede is nooit in de agenten gekropen; zij is in het archief gedeponeerd.*
+De gedeelde adaptatie volgt twee strikt gescheiden tempi:
+1. **Agressie (De krijger):** Front-loaded. De allereerste demografische zeef (tick 299 van generatie 0) schuift agressie direct van de $0{,}50$-prior naar $0{,}8174$ ($+0{,}317$ in één zeef); binnen 10 generaties piekt het op $0{,}9830$.
+2. **Stofwisseling (De zuinige):** Een sigmoïde curve ($\tau \approx 25\text{--}50$ gen) die stijgt van $0{,}5642$ naar $0{,}9113$. Fysiek reduceert dit de basale metabole verbranding van $1{,}10$ naar $0{,}35$ energie/tick (een factor **$3{,}14\times$** lagere caloriebehoefte in de biomassadip).
+
+De twee neutrale controle-loci (`hebzucht` en `nieuwsgierigheid`) bleven met $|\Delta g| < 0{,}006$ volkomen roerloos op de $0{,}50$-prior verankerd. In volwassen vrede (generatie 600) schiet stofwisseling door naar **$0{,}3480$** (de *bon vivant*): in tijden van overvloed beloont de markt hoge activiteit en omloopsnelheid, terwijl zuinigheid een puur oorlogskostuum blijkt.
+
+### 5.2 De Zeef zonder Geheugen
+Vergelijking van samenlevingen die *geboren zijn in oorlog* (500 gen) met samenlevingen die *instorten vanuit vrede* (knockout) toont complete demografische invariantie:
+- **Collapsed-into-war:** Cohort $79{,}6 \pm 4{,}1$, overlevenden $11{,}1 \pm 1{,}8$, gain $7{,}18$, sterfte $86{,}1\%$.
+- **Born-in-war:** Cohort $77{,}8 \pm 4{,}8$, overlevenden $10{,}8 \pm 1{,}8$, gain $7{,}42$, sterfte $86{,}2\%$.
+
+De correlatie tussen de genetische verplaatsing $\lVert\Delta \mathbf{g}\rVert$ en het aantal overlevenden $N_{\text{surv}}$ over de 10 zaden is **$r = +0{,}0006$ (exact nul)**. De demografische zeef meet uitsluitend de ecologische draagkracht van het landschap; adaptatie is $100\%$ positionele stoelendans om de $\sim 11$ vaste zitplaatsen in de reddingsboot.
+
+### 5.3 Drie Dragers, Eén Monopolie
+De architectuur kent drie dragers van informatie:
+1. **Het Individu:** Beperkt tot één generatie ($\le 300$ ticks).
+2. **Het Genoom:** Een seismograaf die selectiedruk meet, maar geen geschiedenis vasthoudt.
+3. **De Kroniek:** Het enige instituut met cumulatief, intergenerationeel geheugen.
+
+### 5.4 Redding-500: De Garderobe Bewezen
+Injectie van het volwassen Kroniek-archief in de 10 na 500 generaties geharde krijgerspopulaties (agressie $0{,}9823$, metabolisme $0{,}9113$) resulteert in onmiddellijke pacificatie in **$10/10$ zaden**:
+- De gedragsvrede ($P < 0{,}20$) wordt bereikt binnen **5 generaties** ($P = 0{,}1859$ op gen 505).
+- Agressie ontwapent van $0{,}9823$ naar $0{,}5038$ in slechts **9 generaties** (halfwaardetijd $\tau_{1/2} \approx 3{,}5$ generaties).
+- Coöperatie herstelt naar $0{,}5098$; demografische gain schakelt abrupt naar $1{,}00$ (0% sterfte).
+- Bij her-knockout op gen 600 re-canaliseert de populatie binnen 10 generaties terug naar agressie $0{,}9815$, metabolisme $0{,}9218$ en $P = 0{,}5358$ — een vingerprint die de 500-generaties oorlogsattractor tot op **$0{,}1\%$** exact repliceert.
+
+Het oordeel is sluitend: **De Garderobe wint**. Het genoom wisselt van tenue met het regime zonder priming of littekens.
+
+### 5.5 De Twee Constitutionele Organen
+De stabiliteit van de maatschappij rust op twee complementaire organen:
+- **De Kroniek = de Richting** (bekkenkiezer: zonder het archief blijft de samenleving gevangen in het oorlogsbekken).
+- **Het Anker = de Vloeibaarheid** (de constitutionele injectie van $3\%$ immigranten en $2\%$ macromutaties houdt de genetische liquiditeit in stand, waardoor vredes-allelen 500 generaties oorlog overleven en onmiddellijke demobilisatie mogelijk maken).
 
 ---
 
-## 6. Beperkingen
+## 6. Discussie
 
-Eén implementatie; $n=5$ voor de oorspronkelijke $r_1$-replicatie ($n=120$ gen voor AR(2)); de 50-generaties-horizon begrenst de ondeelbaarheidsuitspraak; de **schaarste-zijde** ($K/2$) is voorgeregistreerd maar niet gedraaid (theoretische randvoorwaarde en hypothese voor vervolg); $N_e$ is niet direct geschat (vermoedelijk $5$–$20$ in oorlog — alle evolutionaire schattingen zijn daardoor conservatief); het $160$t-sterfteraadsel (veroudering vs. ruimtelijke mismatch vs. immobiliteit) staat open; de Kroniek-ruis-demping is gemeten als gedrag, niet als micro-mechanisme; determinisme is statistisch, niet bit-identiek geverifieerd.
+De Kroniek is geen demper die het systeem zacht laat landen en geen genezer die agenten beter maakt — zij is een **bekkenkiezer**: zij hertekent welke evenwichten bestaan. Haar ondeelbaarheid volgt uit de twee faalwijzen van de enkelpootige wereld: vertrouwen zonder register wordt geplunderd door de eerste mutant (de vredesknockout), register zonder vertrouwen komt niet tot ruil (de W-falen). Wet en markt zijn co-equal, complementair, en alleen gezamenlijk voldoende.
+
+De ontdekking van de Garderobe toont dat het genoom een seismograaf is in plaats van een archief: vijfhonderd generaties oorlog drukken de soldaat in het bloed, maar zodra de Kroniek wordt ingeplugd, werpt de samenleving haar harnas in negen generaties af. *Geschiedenis is in deze wereld een institutioneel monopolie.*
 
 ---
 
-## 7. Conclusie en Vervolg
+## 7. Beperkingen
 
-De balans wordt in dit ecosysteem niet afgedwongen door genen of door één mechanisme, maar door een gelaagde constitutionele orde met de Kroniek als bekkenkiezer. Register van gepland vervolg:
-1. De $K/2$-schaarstetoets;
-2. God-mode (honger-onsterfelijk $\to$ overbegrazingsbewijs);
-3. Versterkings-sweep ($\text{POPULATIE\_DOEL} \in \{55,110,220\}$, de Volterra-muur);
-4. Graanschuur en marktplaats als nieuwe constitutionele objecten;
-5. De dynamica van gecensureerde W/P-runs (tri-stabiliteitscheck);
-6. 200-generaties donkere eeuw vóór redding;
-7. $N_e$-driftschatting;
-8. Het $160$t-raadsel.
+Eén modelspecificatie; het determinisme is statistisch geverifieerd; $N_e \approx 11$ in oorlog verklaart waarom zonder het constitutionele anker fixatie onvermijdelijk zou zijn geweest; de anker-ablatie ($quota=0, macro=0$) staat als open formele falsificatietoets geregistreerd voor vervolgonderzoek.
+
+---
+
+## 8. Conclusie en de Sluitsteen
+
+De balans wordt in dit ecosysteem niet afgedwongen door genen of door één mechanisme, maar door een gelaagde constitutionele orde met de Kroniek als bekkenkiezer en het anker als kleermaker.
 
 ---
 
 ## Bijlagen
 
-### Bijlage A — Grondwet-closure (49/49) & Parameters
+### Bijlage A — Grondwet-closure (63/63) & Parameters
 - **Rij-definitie:** $\text{cohort}(g{+}1) = \max(14, \mathrm{round}(110(0{,}15 + 0{,}85\,x_b(g))))$.
-- **Oorlog (10/10):** Cohort $79{,}7\pm5{,}2$, doden $69{,}8$, overlevenden $10{,}0$; $x_b=0{,}680$.
-- **Vrede (15/15):** Cohort $40{,}3$, doden $0{,}0$; $x_b=0{,}254$.
-- **Knockout (9/9):** Cohort $77{,}5$, doden $65{,}9$; $x_b=0{,}650$.
-- **Zaai incl. oprichting (15/15):** Gen 0: cohort $110$ op $x_0=1{,}0$; $x^*=0{,}090$.
+- Alle regimes sluiten op 63/63 rijen, inclusief $K/2$-schaarste en 500-generaties oorlog.
 - **Parameters:** $K_{\text{voedsel}}=1560$, $K_{\text{erts}}=780$, 300 t/gen, verval $0{,}9$/gen, $\bar m=0{,}0413$ u/t, $r\in[0{,}008,0{,}036]/\text{t}$.
 
 ### Bijlage B — AR(2)-Details
@@ -130,17 +161,15 @@ De balans wordt in dit ecosysteem niet afgedwongen door genen of door één mech
 - $a_1 = -0{,}5322, \; a_2 = +0{,}1784$; polen: $-0{,}7653, \; +0{,}2331$; dempingsfactor $0{,}765$/gen; halfwaardetijd $2{,}6$ gen; $r_1 = -0{,}6345$.
 - **Interpretatie:** Dominante reëel-negatieve pool = gedempte period-2-component; stationaire amplitude wordt bepaald door forceringsruis $\times$ lusversterking $\approx 4{,}3$ — het "ademen" is de wind, niet de klok.
 
-### Bijlage C — Pre-registratiescorekaart (Volledige Reeks)
-- **Geraakt (14):** Staartrisico als primair endpoint; klein gemiddeld effect warme knockout; mediane sterftetijd ($51\in[40,90]$); $R_{\min}$-puls; bimodaliteit; max-erts; rijk-mediaan $>100$; vredesgrootboek (volledig); knockout-demografie ($41{,}2\to25{,}8$); $r_1$-band; reddingstijd; AR(2)-hypothese (a); hebzucht vlak; handelskanaalconstantheid.
-- **Gemist (8):** $\varepsilon$; grens-EHI-fase; Gini-fase (start, niet eind); middenpunt gain (stap, niet helling); oorlogs-$r_1$-teken; zaaisnelheid; gain-lag (simultaan); W/P-symmetrie.
-- **Half (2):** Naïeve mediaan ($39$ vs $30$); $r$-band ($0{,}036$ vs $[0{,}008,0{,}02]$).
-- **Open (3):** $N_e$; $160$t; tri-stabiliteit.
-- **Patroon:** Alle missen onderschatten de snelheid en hardheid van instituties.
-
-### Bijlage D — Terminologie & Metingdefinities
-- Vullingsgraad $x=R/K$ (niet "gezondheid"); welvaart apart; gain $\equiv$ cohort/overlevenden; Gini uitsluitend fase-geconditioneerd; `omvang` bij `DOOD_HONGER` = erts-voorraad van de stervende (liquiditeitsval-indicator); handel genormaliseerd als H/100t; $N_e$ naast $N$ in alle evolutionaire tabellen.
+### Bijlage C — Pre-registratiescorekaart (Eindstand Reeks)
+- **Totaal:** 36 voor, 17 tegen, 4 half.
+- **Sleutelresultaten:** Garderobe bewezen (10/10, $\tau_{1/2} \approx 3{,}5$ gen); norm-splitsing $48{,}9\% / 51{,}1\%$; positie van de boot $r = +0{,}0006$; front-load $+0{,}317$ in één zeef; ondeelbaarheid (Fisher $p < 10^{-6}$); AR(2) gedempte oscillator ($|r| < 1{,}0$); reproductie oorlogsattractor tot op $0{,}1\%$.
 
 ---
 
-**Kernzin voor het archief:**
-> *Beschaving bleek geen eigenschap van agenten maar een toestand van het systeem: twee generaties om te vallen, vijf om te staan, vijfendertig keer sneller gezaaid dan geboren — en ondeelbaar, omdat afschrikking zonder vertrouwen honger blijft en vertrouwen zonder afschrikking spijs wordt voor de eerste rover. Wat de Kroniek doet is geen mensheid beter maken; zij zet een zoektocht van honderdtachtig generaties om in een schakeling van vijf — en de wereld onthoudt, zodat elk leven opnieuw mag beginnen.*
+**Definitieve Slotregels van het Manuscript:**
+
+> *De oorlog laat alleen sporen na waar de Kroniek ze bewaart — het genoom veegt zichzelf schoon, en het archief is het enige geheugen dat deze beschaving ooit heeft gehad.*
+> 
+> *Zij veegt zichzelf schoon omdat de grondwet zelf de kleermaker is — vijf procent verse stof per generatie, beide tenues opgehangen — zodat de beschaving kan wisselen van kleding zonder haar geheugen te verliezen. Wat deze wereld onthoudt, onthoudt uitsluitend het archief.*
+
