@@ -173,3 +173,19 @@ De balans wordt in dit ecosysteem niet afgedwongen door genen of door één mech
 > 
 > *Zij veegt zichzelf schoon omdat de grondwet zelf de kleermaker is — vijf procent verse stof per generatie, beide tenues opgehangen — zodat de beschaving kan wisselen van kleding zonder haar geheugen te verliezen. Wat deze wereld onthoudt, onthoudt uitsluitend het archief.*
 
+---
+
+### Bijlage E — Colofon van de Reeks
+
+| Deel | Inventaris |
+|---|---|
+| **Voorspellingen** | 36 geraakt · 17 verbroken · 4 half · geen één verborgen |
+| **Gesloten balansen** | Levens (63/63) · Biomassa (MSY-kring) · Erts (stationair) |
+| **Geverifieerde wetten** | Grondwet als pure functie · Bistabiliteit met fingerprint-replicatie ($\Delta \approx 0{,}1\%$) · Asymmetriewet v3.1 (wetboeken vs. zeef) · Asymmetrie van institutionele tijd ($2 < 5{,}2 \approx 5\text{--}10 \ll 180$) · Ondeelbaarheid van de instelling (AND) · Genoom als seismograaf met constitutioneel anker |
+| **Het hoogste bewijs** | De Kroniek kiest niet tussen leven en dood — tussen twee levens; en geschiedenis is in deze wereld een institutioneel monopolie |
+
+> *Wij begonnen met een vraag over geheugen en eindigden met een wereld waarin alleen het archief onthoudt — en precies dat bleek het verschil tussen twee eeuwige samenlevingen. Wat de simulatie leerde, staat nu in de repo; wat wij leerden, is dat de beste architectuur niet die is die altijd gelijk heeft, maar die die haar fouten laat meten.*
+> 
+> *De wachtrij wacht, de seeds zijn vast, en de Kroniek — zoals altijd — vergeet niets.* 🏛️
+
+
