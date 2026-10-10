@@ -16,6 +16,7 @@ from enum import Enum
 import numpy as np
 
 from .genome import GENE_NAMEN, N_GENES
+from .protocol import Res
 
 TELEMETRI_SCHEMA = "evotelemetry/v1"
 
@@ -50,6 +51,10 @@ class TikSteekproef:
     gen_std: tuple[float, ...]
     bucket_tellingen: tuple[int, ...]  # lengte 9, index = a*3+c
     handels_per_100: int = 0
+    totale_voedsel: float = 0.0
+    totale_erts: float = 0.0
+    ehi_voedsel: float = 0.0
+    ehi_erts: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -237,6 +242,8 @@ class TelemetrieRegistratie:
         bron_tot = wereld.totale_bron()
         ehi = wereld.gov.gezondheidsindex(bron_tot)
         h100 = sum(1 for t in self._handels_historie if t >= wereld.tick - 100)
+        bron_per_type = wereld.totale_bron_per_type()
+        ehi_per_type = wereld.ehi_per_type()
         rec = TikSteekproef(
             tik=wereld.tick,
             generatie=wereld.tick // max(1, getattr(wereld, "tick_per_gen", 300)),
@@ -255,6 +262,10 @@ class TelemetrieRegistratie:
             gen_std=tuple(float(v) for v in std),
             bucket_tellingen=tuple(int(v) for v in buckets),
             handels_per_100=h100,
+            totale_voedsel=round(bron_per_type[Res.VOEDSEL], 2),
+            totale_erts=round(bron_per_type[Res.ERTS], 2),
+            ehi_voedsel=ehi_per_type[Res.VOEDSEL],
+            ehi_erts=ehi_per_type[Res.ERTS],
         )
         with self.lock:
             self.tikken.append(rec)
@@ -366,6 +377,10 @@ class TelemetrieRegistratie:
                 "gini_erts",
                 "shannon",
                 "handels_per_100",
+                "totale_voedsel",
+                "totale_erts",
+                "ehi_voedsel",
+                "ehi_erts",
             )
         }
         uit["gen_gem"] = np.array([r.gen_gem for r in buf])  # (T, 9)

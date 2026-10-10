@@ -119,6 +119,13 @@ class Wereld:
         self.gov = EcosysteemGouverneur(
             EcoInstellingen(draagkracht=sum(b.capaciteit for b in self.grid.values()))
         )
+        # Vaste broncapaciteit per resourcetype (voor voedsel-specifieke telemetrie,
+        # zie totale_bron_per_type/ehi_per_type). Natuurlijke bronnen (groei > 0)
+        # worden nooit verwijderd, dus deze som blijft constant tijdens de run.
+        self.draagkracht_per_type: dict[Res, float] = {
+            Res.VOEDSEL: sum(b.capaciteit for b in self.grid.values() if b.res is Res.VOEDSEL),
+            Res.ERTS: sum(b.capaciteit for b in self.grid.values() if b.res is Res.ERTS),
+        }
         self.motor = EvolutieMotor()
         self.generatie_archief: list[tuple[Genome, Momentopname]] = []
         self._agres_aandeel = 0.0
@@ -424,6 +431,21 @@ class Wereld:
     # ── hoofdtik ─────────────────────────────────────────────────────────
     def totale_bron(self) -> float:
         return sum(b.hoeveelheid for b in self.grid.values())
+
+    def totale_bron_per_type(self) -> dict[Res, float]:
+        """Som van hoeveelheid, uitgesplitst per Res-type (o.a. voor voedsel-specifieke telemetrie)."""
+        totalen = {Res.VOEDSEL: 0.0, Res.ERTS: 0.0}
+        for b in self.grid.values():
+            totalen[b.res] += b.hoeveelheid
+        return totalen
+
+    def ehi_per_type(self) -> dict[Res, float]:
+        """Gezondheidsindex (0-1) per resourcetype t.o.v. de vaste draagkracht van dat type."""
+        totalen = self.totale_bron_per_type()
+        return {
+            res: max(0.0, min(1.0, totalen[res] / max(1e-9, self.draagkracht_per_type[res])))
+            for res in (Res.VOEDSEL, Res.ERTS)
+        }
 
     def stap(self) -> None:
         levend = [a for a in self.agents.values() if a.levend]

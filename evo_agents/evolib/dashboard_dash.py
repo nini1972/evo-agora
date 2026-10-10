@@ -192,6 +192,8 @@ def fig_reeksen(reg) -> go.Figure:
         )
     for kolom, kleur in (
         ("ehi", "#3fb950"),
+        ("ehi_voedsel", "#2ea043"),
+        ("ehi_erts", "#8b949e"),
         ("gini_erts", "#f85149"),
         ("shannon", "#d2a8ff"),
         ("parasitair", "#ffa657"),
@@ -208,6 +210,7 @@ def fig_reeksen(reg) -> go.Figure:
                     y=ty,
                     name=kolom,
                     line=dict(color=kleur, width=1.4),
+                    visible=True if kolom in ("ehi", "ehi_voedsel") else "legendonly",
                 ),
                 secondary_y=True,
             )
@@ -709,7 +712,8 @@ def maak_app(
             if not len(d2)
             else (
                 f"t={int(d2['tik'][-1])}  N={int(d2['populatie'][-1])}  "
-                f"EHI={d2['ehi'][-1]:.2f}  Gini={d2['gini_erts'][-1]:.2f}  "
+                f"EHI={d2['ehi'][-1]:.2f}  EHI(voedsel)={d2.get('ehi_voedsel', [0])[-1]:.2f}  "
+                f"Gini={d2['gini_erts'][-1]:.2f}  "
                 f"P={d2['parasitair'][-1]:.2f}  κ={d2['coop_ema'][-1]:.2f}  "
                 f"H/100t={int(d2.get('handels_per_100', [0])[-1])}"
                 + ("  *** EXTINCT ***" if d2["populatie"][-1] == 0 else "")
