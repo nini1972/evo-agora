@@ -9,6 +9,18 @@ import argparse
 import os
 import sys
 
+# Zorg voor robuuste console encoding op Windows (voorkomt UnicodeEncodeError bij cp1252)
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import numpy as np
 
 # Zorg ervoor dat evolib direct geïmporteerd kan worden
@@ -61,10 +73,10 @@ def main() -> None:
         from evolib.dashboard_dash import maak_app
 
         app = maak_app(reg, replay=True)
-        print(f"\n🚀 Replay dashboard gestart op http://127.0.0.1:{args.poort}/")
+        print(f"\n[+] Replay dashboard gestart op http://127.0.0.1:{args.poort}/")
         try:
             import waitress
-            print(f"⚡ Productie WSGI-server (waitress) actief met multi-threading.")
+            print(f"[*] Productie WSGI-server (waitress) actief met multi-threading.")
             waitress.serve(app.server, host="127.0.0.1", port=args.poort, threads=4)
         except ImportError:
             app.run(port=args.poort, debug=False)
@@ -87,11 +99,11 @@ def main() -> None:
         runner = SimulatieRunner(wereld)
         runner.start()
         app = maak_app(reg, wereld=wereld, runner=runner)
-        print(f"\n🚀 Dash interactief dashboard gestart op http://127.0.0.1:{args.poort}/")
+        print(f"\n[+] Dash interactief dashboard gestart op http://127.0.0.1:{args.poort}/")
         try:
             try:
                 import waitress
-                print(f"⚡ Productie WSGI-server (waitress) actief met multi-threading.")
+                print(f"[*] Productie WSGI-server (waitress) actief met multi-threading.")
                 waitress.serve(app.server, host="127.0.0.1", port=args.poort, threads=4)
             except ImportError:
                 app.run(port=args.poort, debug=False)
