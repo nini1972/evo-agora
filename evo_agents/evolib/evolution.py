@@ -180,6 +180,14 @@ class EvolutieMotor:
             return Genome.willekeurig(rng)
 
         # TOERNOOI LUS MET HARDE DIVERSITEITS-CHECK
+        # BUGFIX: Stagnatiebewaking. Als alle kandidaten telkens op dezelfde
+        # (volle) cluster uitkomen — bv. na een genetische bottleneck waarbij
+        # er maar één cluster overblijft — kan de cap nooit voldaan worden en
+        # loopt deze lus anders voor altijd door (permanente deadlock van de
+        # generatiewissel). Na genoeg mislukte pogingen staan we de cap-check
+        # toe te negeren zodat de lus altijd termineert.
+        mislukte_pogingen = 0
+        max_pogingen = max(200, 20 * doelgrootte)
         while len(kinderen) < doelgrootte:
             r = rng.random()
             if r < self.immigrant_quota:
@@ -202,9 +210,11 @@ class EvolutieMotor:
 
             # BUGFIX: Als het kind (of de reserve) de cluster-cap overschrijdt,
             # weigeren we het genoom direct en proberen we het in de volgende lus-iteratie opnieuw.
-            if telling.get(c_idx, 0) >= cap:
+            if telling.get(c_idx, 0) >= cap and mislukte_pogingen < max_pogingen:
+                mislukte_pogingen += 1
                 continue  # Gooi het kind weg, voorkom cluster-explosie
 
+            mislukte_pogingen = 0
             telling[c_idx] = telling.get(c_idx, 0) + 1
             kinderen.append(kind)
 
