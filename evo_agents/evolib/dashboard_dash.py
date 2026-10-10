@@ -32,13 +32,13 @@ EMMER_PALET = [
 TYPE_NAAM = {e.value: e.name for e in GebeurtenisType}
 
 
-def _layout(fig: go.Figure) -> go.Figure:
+def _layout(fig: go.Figure, uirevision: str | None = "vast") -> go.Figure:
     fig.update_layout(
         template="plotly_dark",
         paper_bgcolor=DONKER["papercolor"],
         plot_bgcolor=DONKER["backgroundcolor"],
         margin=dict(l=36, r=16, t=34, b=28),
-        uirevision="vast",  # behoud zoom/pan tussen polls
+        uirevision=uirevision,  # behoud zoom/pan tussen polls
     )
     return fig
 
@@ -179,11 +179,11 @@ def fig_kaart(
     return _layout(fig)
 
 
-def fig_reeksen(reg) -> go.Figure:
+def fig_reeksen(reg, uirevision: str | None = "vast") -> go.Figure:
     d = reg.tik_arrays()
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     if not d:
-        return _layout(fig)
+        return _layout(fig, uirevision=uirevision)
     t = d["tik"]
     for kolom, kleur, naam in (("populatie", "#58a6ff", "populatie"),):
         tx, ty = lttb(t, d[kolom])
@@ -215,12 +215,15 @@ def fig_reeksen(reg) -> go.Figure:
                 secondary_y=True,
             )
     fig.update_layout(title="Tijdsreeksen", hovermode="x unified")
-    fig.update_xaxes(rangeslider=dict(visible=True))
+    # De rangeslider combineert slecht met secondary_y in Plotly.js en verdubbelt
+    # de SVG DOM-rendering. We schakelen hem permanent uit: zoom/pan werkt via
+    # muis/modebar, en de x-as volgt live automatisch.
+    fig.update_xaxes(rangeslider=dict(visible=False))
     fig.update_yaxes(title_text="populatie", secondary_y=False)
     fig.update_yaxes(
         title_text="fracties [0–1]", range=[-0.02, 1.02], secondary_y=True
     )
-    return _layout(fig)
+    return _layout(fig, uirevision=uirevision)
 
 
 def fig_evolutie(reg) -> go.Figure:
@@ -617,7 +620,7 @@ def maak_app(
             ),
             dcc.Interval(
                 id="klok",
-                interval=450,
+                interval=750,
                 disabled=bool(replay),  # replay: alleen via scrubber
             ),
             dcc.Store(id="niks"),
@@ -698,7 +701,10 @@ def maak_app(
         if actieve_tab == "kaart":
             f_kaart = fig_kaart(reg, tik_keuze, breedte, hoogte)
         elif actieve_tab == "reeksen":
-            f_reeksen = fig_reeksen(reg)
+            # Live volgt de x-as automatisch de tijdreeks (uirevision=None).
+            # Bij pauze of replay blijft zoom/pan behouden (uirevision="pauze_inspectie").
+            ui_rev = "pauze_inspectie" if (gestopt or replay) else None
+            f_reeksen = fig_reeksen(reg, uirevision=ui_rev)
         elif actieve_tab == "evolutie":
             f_evolutie = fig_evolutie(reg)
         elif actieve_tab == "faseportret":
@@ -706,17 +712,17 @@ def maak_app(
         elif actieve_tab == "gebeurtenissen":
             f_gebeurtenissen, tabel_data = fig_gebeurtenissen(reg)
 
-        d2 = reg.tik_arrays()
+        laatste_rec = reg.laatste_tik_steekproef()
         status = (
             "—"
-            if not len(d2)
+            if laatste_rec is None
             else (
-                f"t={int(d2['tik'][-1])}  N={int(d2['populatie'][-1])}  "
-                f"EHI={d2['ehi'][-1]:.2f}  EHI(voedsel)={d2.get('ehi_voedsel', [0])[-1]:.2f}  "
-                f"Gini={d2['gini_erts'][-1]:.2f}  "
-                f"P={d2['parasitair'][-1]:.2f}  κ={d2['coop_ema'][-1]:.2f}  "
-                f"H/100t={int(d2.get('handels_per_100', [0])[-1])}"
-                + ("  *** EXTINCT ***" if d2["populatie"][-1] == 0 else "")
+                f"t={laatste_rec.tik}  N={laatste_rec.populatie}  "
+                f"EHI={laatste_rec.ehi:.2f}  EHI(voedsel)={laatste_rec.ehi_voedsel:.2f}  "
+                f"Gini={laatste_rec.gini_erts:.2f}  "
+                f"P={laatste_rec.parasitair:.2f}  κ={laatste_rec.coop_ema:.2f}  "
+                f"H/100t={laatste_rec.handels_per_100}"
+                + ("  *** EXTINCT ***" if laatste_rec.populatie == 0 else "")
                 + ("  [⏸️ GEPAUZEERD]" if gestopt else "")
             )
         )

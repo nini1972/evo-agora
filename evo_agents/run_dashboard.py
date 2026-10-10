@@ -62,7 +62,12 @@ def main() -> None:
 
         app = maak_app(reg, replay=True)
         print(f"\n🚀 Replay dashboard gestart op http://127.0.0.1:{args.poort}/")
-        app.run(port=args.poort, debug=False)
+        try:
+            import waitress
+            print(f"⚡ Productie WSGI-server (waitress) actief met multi-threading.")
+            waitress.serve(app.server, host="127.0.0.1", port=args.poort, threads=4)
+        except ImportError:
+            app.run(port=args.poort, debug=False)
         return
 
     wereld, reg = bouw_wereld(args.seed, args.log)
@@ -84,7 +89,12 @@ def main() -> None:
         app = maak_app(reg, wereld=wereld, runner=runner)
         print(f"\n🚀 Dash interactief dashboard gestart op http://127.0.0.1:{args.poort}/")
         try:
-            app.run(port=args.poort, debug=False)
+            try:
+                import waitress
+                print(f"⚡ Productie WSGI-server (waitress) actief met multi-threading.")
+                waitress.serve(app.server, host="127.0.0.1", port=args.poort, threads=4)
+            except ImportError:
+                app.run(port=args.poort, debug=False)
         finally:
             runner.stop_event.set()
             reg.sluit()

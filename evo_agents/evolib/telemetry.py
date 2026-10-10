@@ -171,6 +171,8 @@ class TelemetrieRegistratie:
         self._coop_ema = float("nan")
         self._ruimtelijk_teller = 0
         self._handels_historie: deque[int] = deque(maxlen=2000)
+        self._cached_tik_arrays: dict[str, np.ndarray] | None = None
+        self._cached_tik_array_tik: int = -1
         self._sink = None
         if sink_pad:
             self.open_sink(sink_pad)
@@ -354,11 +356,20 @@ class TelemetrieRegistratie:
         self._schrijf("ruimtelijk", snap)
 
     # ── lees-API (kopieer-onder-lock; teken buiten de lock!) ─────────────
+    def laatste_tik_steekproef(self) -> TikSteekproef | None:
+        """Geeft de meest recente tik-steekproef terug in O(1) zonder array-conversies."""
+        with self.lock:
+            return self.tikken[-1] if self.tikken else None
+
     def tik_arrays(self) -> dict[str, np.ndarray]:
         with self.lock:
+            if not self.tikken:
+                return {}
+            laatste_tik_nr = self.tikken[-1].tik
+            if self._cached_tik_arrays is not None and self._cached_tik_array_tik == laatste_tik_nr:
+                return self._cached_tik_arrays
             buf = list(self.tikken)
-        if not buf:
-            return {}
+
         veld = lambda naam: np.array([getattr(r, naam) for r in buf], dtype=float)
         uit = {
             k: veld(k)
@@ -386,6 +397,10 @@ class TelemetrieRegistratie:
         uit["gen_gem"] = np.array([r.gen_gem for r in buf])  # (T, 9)
         uit["gen_std"] = np.array([r.gen_std for r in buf])
         uit["buckets"] = np.array([r.bucket_tellingen for r in buf], dtype=int)
+
+        with self.lock:
+            self._cached_tik_arrays = uit
+            self._cached_tik_array_tik = laatste_tik_nr
         return uit
 
     def generatie_lijst(self) -> list[GeneratieSteekproef]:
