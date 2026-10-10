@@ -214,14 +214,16 @@ def fig_reeksen(reg, uirevision: str | None = "vast") -> go.Figure:
                 ),
                 secondary_y=True,
             )
-    fig.update_layout(title="Tijdsreeksen", hovermode="x unified")
+    fig.update_layout(title="Tijdsreeksen", hovermode="x unified", dragmode="zoom")
     # De rangeslider combineert slecht met secondary_y in Plotly.js en verdubbelt
     # de SVG DOM-rendering. We schakelen hem permanent uit: zoom/pan werkt via
     # muis/modebar, en de x-as volgt live automatisch.
-    fig.update_xaxes(rangeslider=dict(visible=False))
-    fig.update_yaxes(title_text="populatie", secondary_y=False)
+    # Door fixedrange=True op beide y-assen te zetten, zoomt de muis (klik-en-sleep
+    # of scrollwiel) altijd zuiver horizontaal over het tijdsinterval!
+    fig.update_xaxes(rangeslider=dict(visible=False), fixedrange=False)
+    fig.update_yaxes(title_text="populatie", secondary_y=False, fixedrange=True)
     fig.update_yaxes(
-        title_text="fracties [0–1]", range=[-0.02, 1.02], secondary_y=True
+        title_text="fracties [0–1]", range=[-0.02, 1.02], secondary_y=True, fixedrange=True
     )
     return _layout(fig, uirevision=uirevision)
 
@@ -568,6 +570,12 @@ def maak_app(
                     dcc.Graph(
                         id="grafiek-reeksen",
                         style={"height": "80vh"},
+                        config={
+                            "displayModeBar": True,
+                            "scrollZoom": True,
+                            "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                            "displaylogo": False,
+                        },
                     )
                 ],
             ),
@@ -578,6 +586,7 @@ def maak_app(
                     dcc.Graph(
                         id="grafiek-evolutie",
                         style={"height": "86vh"},
+                        config={"displayModeBar": True, "scrollZoom": True, "displaylogo": False},
                     )
                 ],
             ),
@@ -588,6 +597,7 @@ def maak_app(
                     dcc.Graph(
                         id="grafiek-faseportret",
                         style={"height": "80vh"},
+                        config={"displayModeBar": True, "scrollZoom": True, "displaylogo": False},
                     )
                 ],
             ),
@@ -598,6 +608,7 @@ def maak_app(
                     dcc.Graph(
                         id="grafiek-gebeurtenissen",
                         style={"height": "38vh"},
+                        config={"displayModeBar": True, "scrollZoom": True, "displaylogo": False},
                     ),
                     dash_table.DataTable(
                         id="tabel-gebeurtenissen",
